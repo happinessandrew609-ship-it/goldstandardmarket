@@ -1,21 +1,21 @@
 {
-    "brand_name": "YourBrand",
-    "brand_domain": "yourbrand.com",
+    "brand_name": "Gold Standard Market",
+    "brand_domain": "curious-fox-b0b908.netlify.app",
     "brand_hostname": {
-        "staging": "staging.yourbrand.com/dashboard",
-        "production": "yourbrand.com/dashboard"
+        "staging": "curious-fox-b0b908.netlify.app",
+        "production": "curious-fox-b0b908.netlify.app"
     },
-    "domain_name": "YourBrand.com",
+    "domain_name": "Gold Standard Market",
     "colors": {
-        "primary": "#3b82f6",
-        "secondary": "#64748b",
-        "tertiary": "#8b5cf6",
+        "primary": "#D4AF37",
+        "secondary": "#1a1a2e",
+        "tertiary": "#C5A028",
         "success": "#10b981",
         "danger": "#ef4444",
         "warning": "#f59e0b",
         "info": "#0ea5e9",
         "neutral": "#6b7280",
-        "black": "#0f172a",
+        "black": "#0f0f23",
         "white": "#ffffff",
         "grey": {
             "50": "#f8fafc",
@@ -58,14 +58,14 @@
         "css_variable_prefix": "--brand"
     },
     "platform": {
-        "name": "Trading Bot",
+        "name": "Gold Standard Market",
         "logo": {
             "type": "component",
             "component_name": "BrandLogo",
-            "alt_text": "Trading Bot",
+            "alt_text": "Gold Standard Market",
             "link_url": "/",
             "show_text": false,
-            "text": "Trading Bot"
+            "text": "Gold Standard Market"
         },
         "footer": {
             "enable_language_settings": false,
@@ -73,10 +73,10 @@
         },
         "hostname": {
             "production": {
-                "com": "bot.yourbrand.com"
+                "com": "curious-fox-b0b908.netlify.app"
             },
             "staging": {
-                "com": "staging-bot.yourbrand.com"
+                "com": "curious-fox-b0b908.netlify.app"
             }
         },
         "auth2_url": {
