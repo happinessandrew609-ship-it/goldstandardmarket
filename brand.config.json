@@ -73,10 +73,10 @@
         },
         "hostname": {
             "production": {
-                "com": "curious-fox-b0b908.netlify.app"
+                "com": "goldstandardmarket.vercel.app"
             },
             "staging": {
-                "com": "curious-fox-b0b908.netlify.app"
+                "com": "goldstandardmarket.vercel.app"
             }
         },
         "auth2_url": {
