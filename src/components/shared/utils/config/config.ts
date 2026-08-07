@@ -64,7 +64,20 @@ export const getSocketURL = async (): Promise<string> => {
     const defaultUrl = isProduction() ? WS_SERVERS.PRODUCTION : WS_SERVERS.STAGING;
 
     try {
-        const authInfoStr = sessionStorage.getItem('auth_info');
+        let authInfoStr = sessionStorage.getItem('auth_info');
+
+        if (!authInfoStr && new URLSearchParams(window.location.search).has('code')) {
+            console.log('[WS] OAuth callback detected, waiting for token exchange to complete...');
+            for (let i = 0; i < 50; i++) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+                authInfoStr = sessionStorage.getItem('auth_info');
+                if (authInfoStr) {
+                    console.log('[WS] auth_info found after waiting');
+                    break;
+                }
+            }
+        }
+
         if (!authInfoStr) {
             console.log('[WS] No auth_info, using default URL');
             return defaultUrl;

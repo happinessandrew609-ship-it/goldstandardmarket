@@ -9,6 +9,7 @@ import { useLanguageFromURL } from '@/hooks/useLanguageFromURL';
 import { useOAuthCallback } from '@/hooks/useOAuthCallback';
 import { StoreProvider } from '@/hooks/useStore';
 import { OAuthTokenExchangeService } from '@/services/oauth-token-exchange.service';
+import { clearDerivApiInstance, generateDerivApiInstance } from '@/external/bot-skeleton/services/api/appId';
 import { initializeI18n, localize, TranslationProvider } from '@deriv-com/translations';
 import CoreStoreProvider from './CoreStoreProvider';
 import './app-root.scss';
@@ -94,7 +95,10 @@ function App() {
                         console.error('Token exchange request failed:', err);
                         cleanupURL();
                     })
-                    .finally(() => setAuthReady(true));
+                    .finally(() => {
+                        clearDerivApiInstance();
+                        setAuthReady(true);
+                    });
             } else {
                 setAuthReady(true);
             }
