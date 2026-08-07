@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import React from 'react';
 import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router-dom';
 import ChunkLoader from '@/components/loader/chunk-loader';
@@ -71,34 +71,43 @@ const router = createBrowserRouter(
 function App() {
     // Handle OAuth callback flow (CSRF validation + code extraction)
     const { isProcessing, isValid, params, error, cleanupURL } = useOAuthCallback();
+    const hasOAuthParams = new URLSearchParams(window.location.search).has('code');
+    const [authReady, setAuthReady] = useState(!hasOAuthParams);
 
     // Handle account switching via URL parameter
     useAccountSwitching();
 
     // Process the authorization code when OAuth callback is valid
     React.useEffect(() => {
-        if (!isProcessing && isValid && params.code) {
-            // Exchange authorization code for access token
-            OAuthTokenExchangeService.exchangeCodeForToken(params.code)
-                .then(response => {
-                    if (response.access_token) {
+        if (!isProcessing) {
+            if (isValid && params.code) {
+                OAuthTokenExchangeService.exchangeCodeForToken(params.code)
+                    .then(response => {
+                        if (response.access_token) {
+                            cleanupURL();
+                        } else if (response.error) {
+                            console.error('Token exchange failed:', response.error);
+                            cleanupURL();
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Token exchange request failed:', err);
                         cleanupURL();
-                    } else if (response.error) {
-                        console.error('❌ Token exchange failed:', response.error);
-                        console.error('Error description:', response.error_description);
-                        // Clean up URL even on error
-                        cleanupURL();
-                    }
-                })
-                .catch(error => {
-                    console.error('❌ Token exchange request failed:', error);
-                    // Clean up URL even on error
-                    cleanupURL();
-                });
-        } else if (!isProcessing && error) {
-            console.error('OAuth callback error:', error);
+                    })
+                    .finally(() => setAuthReady(true));
+            } else {
+                setAuthReady(true);
+            }
         }
     }, [isProcessing, isValid, params.code, error, cleanupURL]);
+
+    if (!authReady) {
+        return (
+            <Suspense fallback={<ChunkLoader message='Authenticating...' />}>
+                <ChunkLoader message='Authenticating...' />
+            </Suspense>
+        );
+    }
 
     return <RouterProvider router={router} />;
 }
