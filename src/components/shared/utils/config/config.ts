@@ -17,9 +17,10 @@ export const STAGING_DOMAINS = {
 } as const;
 
 // WebSocket server URLs
+const OAUTH_CLIENT_ID = '342vx4HbkVVPtJejdGKP1';
 export const WS_SERVERS = {
-    STAGING: `${brandConfig.platform.derivws.url.staging}options/ws/public`,
-    PRODUCTION: `${brandConfig.platform.derivws.url.production}options/ws/public`,
+    STAGING: `${brandConfig.platform.derivws.url.staging}options/ws/public?client_id=${OAUTH_CLIENT_ID}`,
+    PRODUCTION: `${brandConfig.platform.derivws.url.production}options/ws/public?client_id=${OAUTH_CLIENT_ID}`,
 } as const;
 
 // =============================================================================

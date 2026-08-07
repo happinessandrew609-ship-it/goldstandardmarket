@@ -128,8 +128,7 @@ export class DerivWSAccountsService {
         this.accountsFetchPromise = (async () => {
             try {
                 const baseURL = this.getDerivWSBaseURL();
-                const OptionsDir = brandConfig.platform.derivws.directories.options;
-                const endpoint = `${baseURL}${OptionsDir}accounts`;
+                const endpoint = `${baseURL}accounts`;
 
                 const response = await fetch(endpoint, {
                     method: 'GET',

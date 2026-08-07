@@ -203,52 +203,39 @@ export class OAuthTokenExchangeService {
                 try {
                     const { DerivWSAccountsService } = await import('./derivws-accounts.service');
 
-                    // Fetch accounts and store in sessionStorage
-                    const accounts = await DerivWSAccountsService.fetchAccountsList(data.access_token);
+                    // Try to fetch accounts, but don't fail if REST API doesn't work
+                    try {
+                        const accounts = await DerivWSAccountsService.fetchAccountsList(data.access_token);
 
-                    if (accounts && accounts.length > 0) {
-                        // Store accounts
-                        DerivWSAccountsService.storeAccounts(accounts);
+                        if (accounts && accounts.length > 0) {
+                            // Store accounts
+                            DerivWSAccountsService.storeAccounts(accounts);
 
-                        // Set the first account as active in localStorage
-                        const firstAccount = accounts[0];
-                        localStorage.setItem('active_loginid', firstAccount.account_id);
+                            // Set the first account as active in localStorage
+                            const firstAccount = accounts[0];
+                            localStorage.setItem('active_loginid', firstAccount.account_id);
 
-                        // Set account type
-                        const isDemo =
-                            firstAccount.account_id.startsWith('VRT') || firstAccount.account_id.startsWith('VRTC');
-                        localStorage.setItem('account_type', isDemo ? 'demo' : 'real');
+                            // Set account type
+                            const isDemo =
+                                firstAccount.account_id.startsWith('VRT') || firstAccount.account_id.startsWith('VRTC');
+                            localStorage.setItem('account_type', isDemo ? 'demo' : 'real');
 
-                        ErrorLogger.info('OAuth', 'Accounts fetched and stored', {
-                            loginid: firstAccount.account_id,
-                        });
-
-                        // Trigger WebSocket initialization by reloading or reinitializing api_base
-                        // The api_base will pick up the active_loginid and authorize
-                        const { api_base } = await import('@/external/bot-skeleton');
-                        await api_base.init(true); // Force new connection with the account
-                    } else {
-                        // No accounts returned - this is an error condition
-                        ErrorLogger.error('OAuth', 'No accounts returned after token exchange');
-                        // Clear auth info when no accounts are available to prevent invalid state
-                        this.clearAuthInfo();
-                        return {
-                            error: 'no_accounts',
-                            error_description: 'No accounts available after successful authentication',
-                        };
+                            ErrorLogger.info('OAuth', 'Accounts fetched and stored', {
+                                loginid: firstAccount.account_id,
+                            });
+                        }
+                    } catch (accountsError) {
+                        console.warn('[OAuth] REST accounts fetch failed, proceeding with token:', accountsError);
+                        // Don't fail - the token is still valid, WebSocket will handle accounts
                     }
-                } catch (error) {
-                    ErrorLogger.error('OAuth', 'Error fetching accounts after token exchange', error);
-                    // Clear stored auth info to prevent user from being stuck in invalid auth state
-                    // This allows retry without manual sessionStorage clearing
-                    this.clearAuthInfo();
-                    // Return error status to caller for UI feedback
-                    return {
-                        error: 'account_fetch_failed',
-                        error_description:
-                            error instanceof Error ? error.message : 'Failed to fetch accounts after authentication',
-                    };
-                }
+
+                    // Always try to initialize WebSocket even if accounts fetch failed
+                    try {
+                        const { api_base } = await import('@/external/bot-skeleton');
+                        await api_base.init(true);
+                    } catch (wsError) {
+                        console.warn('[OAuth] WebSocket init error:', wsError);
+                    }
             }
 
             return data;
