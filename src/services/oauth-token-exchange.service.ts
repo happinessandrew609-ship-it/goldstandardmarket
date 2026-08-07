@@ -226,7 +226,6 @@ export class OAuthTokenExchangeService {
                         }
                     } catch (accountsError) {
                         console.warn('[OAuth] REST accounts fetch failed, proceeding with token:', accountsError);
-                        // Don't fail - the token is still valid, WebSocket will handle accounts
                     }
 
                     // Always try to initialize WebSocket even if accounts fetch failed
@@ -239,6 +238,7 @@ export class OAuthTokenExchangeService {
                 } catch (error) {
                     ErrorLogger.error('OAuth', 'Error after token exchange', error);
                 }
+            }
 
             return data;
         } catch (error: unknown) {
