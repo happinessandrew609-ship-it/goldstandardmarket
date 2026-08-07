@@ -167,6 +167,10 @@ export class OAuthTokenExchangeService {
             const data = await response.json() as Record<string, unknown>;
 
             console.log('[OAuth] Token response keys:', Object.keys(data));
+            // Log token lengths and prefixes for debugging (no full tokens)
+            console.log('[OAuth] token1:', data.token1 ? `${String(data.token1).substring(0,4)}...(${String(data.token1).length} chars)` : 'NONE');
+            console.log('[OAuth] acct1:', data.acct1 || 'NONE');
+            console.log('[OAuth] access_token:', data.access_token ? `${String(data.access_token).substring(0,4)}...(${String(data.access_token).length} chars)` : 'NONE');
 
             // Check for errors in response
             if (data.error) {
