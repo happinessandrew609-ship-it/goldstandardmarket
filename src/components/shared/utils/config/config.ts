@@ -234,13 +234,20 @@ export const generateOAuthURL = async (prompt?: string) => {
             // Store token for validation after callback
             storeCSRFToken(csrfToken);
 
+            // Generate PKCE parameters (required by Deriv's server)
+            const codeVerifier = generateCodeVerifier();
+            const codeChallenge = await generateCodeChallenge(codeVerifier);
+
+            // Store code verifier for token exchange
+            storeCodeVerifier(codeVerifier);
+
             // Build redirect URL
             const protocol = window.location.protocol;
             const host = window.location.host;
             const redirectUrl = `${protocol}//${host}`;
 
-            // Build OAuth URL - basic flow without PKCE first
-            let oauthUrl = `${hostname}auth?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${csrfToken}`;
+            // Build OAuth URL with PKCE parameters
+            let oauthUrl = `${hostname}auth?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${csrfToken}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
 
             // Optional: prompt parameter (e.g. 'registration' for signup flow)
             if (prompt) {
