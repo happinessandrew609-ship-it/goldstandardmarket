@@ -73,7 +73,10 @@ export const generateDerivApiInstance = async (forceNew = false) => {
 
             currentWebSocketURL = wsURL;
 
-            console.log('[DerivAPI] Creating new WebSocket connection to:', wsURL);
+            // OTP URLs have auth tokens embedded - no manual authorize needed
+            const isOTPUrl = wsURL.includes('token=') || wsURL.includes('auth_token=');
+            console.log('[DerivAPI] Creating new WebSocket connection to:', wsURL.substring(0, 80) + '...');
+            console.log('[DerivAPI] URL type:', isOTPUrl ? 'OTP (auth embedded)' : 'Plain (needs authorize)');
             const deriv_socket = new WebSocket(wsURL);
             const deriv_api = new DerivAPIBasic({
                 connection: deriv_socket,
@@ -92,40 +95,16 @@ export const generateDerivApiInstance = async (forceNew = false) => {
                 }
             });
 
-            // Store auth token for message listener
-            let storedAuthToken = null;
-            try {
-                const authInfoStr = sessionStorage.getItem('auth_info');
-                if (authInfoStr) {
-                    const authInfo = JSON.parse(authInfoStr);
-                    // Use deriv_token (token1 - short Deriv API token) for WebSocket authorize
-                    // The Ory access_token is too long (>128 chars) and won't work with authorize
-                    storedAuthToken = authInfo.deriv_token || null;
-                    if (!storedAuthToken) {
-                        console.warn('[DerivAPI] No deriv_token (token1) found in auth_info. OAuth may not have returned token1.');
-                        console.warn('[DerivAPI] Check console for [OAuth] token1: log to see what was returned.');
-                    } else {
-                        console.log('[DerivAPI] Using deriv_token (token1) for authorize:', storedAuthToken.substring(0, 4) + '...(' + storedAuthToken.length + ' chars)');
-                    }
-                }
-            } catch (e) {
-                // ignore
-            }
-
-            // Log when connection opens and authenticate with OAuth token
+            // Log when connection opens
             deriv_socket.addEventListener('open', () => {
                 console.log('[DerivAPI] WebSocket connection established');
-
-                if (storedAuthToken) {
-                    console.log('[DerivAPI] Authenticating with OAuth token');
-                    deriv_socket.send(JSON.stringify({
-                        authorize: storedAuthToken,
-                        req_id: 1,
-                    }));
+                // OTP URLs are already authenticated - no authorize needed
+                if (isOTPUrl) {
+                    console.log('[DerivAPI] Connected via OTP URL (already authenticated)');
                 }
             });
 
-            // Listen for authorize response
+            // Listen for messages (DerivAPI library handles authorize internally)
             deriv_socket.addEventListener('message', (event) => {
                 try {
                     const data = JSON.parse(event.data);
@@ -137,9 +116,6 @@ export const generateDerivApiInstance = async (forceNew = false) => {
                             localStorage.setItem('active_loginid', data.authorize.loginid);
                             const isDemo = data.authorize.loginid.startsWith('VRT') || data.authorize.loginid.startsWith('VRTC');
                             localStorage.setItem('account_type', isDemo ? 'demo' : 'real');
-                            const accountsList = {};
-                            accountsList[data.authorize.loginid] = storedAuthToken;
-                            localStorage.setItem('accountsList', JSON.stringify(accountsList));
                         }
                     }
                 } catch (e) {

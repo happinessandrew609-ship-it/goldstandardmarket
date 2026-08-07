@@ -48,14 +48,94 @@ const getDefaultServerURL = () => {
 
 /**
  * Gets the WebSocket URL for Deriv API connection.
- * Authentication happens via the `authorize` WebSocket message using the OAuth token,
- * not via the URL itself.
+ *
+ * Flow:
+ * 1. Get Ory access_token from sessionStorage (from OAuth)
+ * 2. Use Netlify Function proxy to call Deriv REST API (avoids CORS)
+ * 3. Get accounts list, then OTP for the active account
+ * 4. OTP returns an authenticated WebSocket URL
+ *
+ * Falls back to plain WebSocket URL if proxy fails.
  *
  * @returns WebSocket URL
  */
 export const getSocketURL = async (): Promise<string> => {
-    const isProductionEnv = isProduction();
-    return isProductionEnv ? WS_SERVERS.PRODUCTION : WS_SERVERS.STAGING;
+    const defaultUrl = isProduction() ? WS_SERVERS.PRODUCTION : WS_SERVERS.STAGING;
+
+    try {
+        const authInfoStr = sessionStorage.getItem('auth_info');
+        if (!authInfoStr) {
+            console.log('[WS] No auth_info, using default URL');
+            return defaultUrl;
+        }
+
+        const authInfo = JSON.parse(authInfoStr);
+        const accessToken = authInfo.access_token;
+        if (!accessToken) {
+            console.log('[WS] No access_token, using default URL');
+            return defaultUrl;
+        }
+
+        const proxyUrl = `${window.location.origin}/.netlify/functions/deriv-proxy`;
+
+        // Step 1: Get accounts list
+        console.log('[WS] Fetching accounts via proxy...');
+        const accountsResp = await fetch(proxyUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ access_token: accessToken, action: 'accounts' }),
+        });
+
+        if (!accountsResp.ok) {
+            console.warn('[WS] Accounts fetch failed:', accountsResp.status);
+            return defaultUrl;
+        }
+
+        const accountsData = await accountsResp.json();
+        console.log('[WS] Accounts response:', JSON.stringify(accountsData).substring(0, 300));
+
+        const accounts = accountsData?.data;
+        if (!accounts || accounts.length === 0) {
+            console.warn('[WS] No accounts found');
+            return defaultUrl;
+        }
+
+        // Step 2: Pick the active account
+        const activeLoginId = localStorage.getItem('active_loginid');
+        const targetAccount = accounts.find((a) => (a.loginid || a.account_id) === activeLoginId) || accounts[0];
+        const accountId = targetAccount.loginid || targetAccount.account_id;
+
+        console.log('[WS] Target account:', accountId);
+
+        // Step 3: Get OTP WebSocket URL
+        console.log('[WS] Fetching OTP via proxy...');
+        const otpResp = await fetch(proxyUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ access_token: accessToken, action: 'otp', account_id: accountId }),
+        });
+
+        if (!otpResp.ok) {
+            console.warn('[WS] OTP fetch failed:', otpResp.status);
+            return defaultUrl;
+        }
+
+        const otpData = await otpResp.json();
+        console.log('[WS] OTP response:', JSON.stringify(otpData).substring(0, 300));
+
+        // The OTP response contains a WebSocket URL with credentials embedded
+        const wsUrl = otpData?.data?.url;
+        if (wsUrl) {
+            console.log('[WS] Got authenticated WebSocket URL from OTP');
+            return wsUrl;
+        }
+
+        console.warn('[WS] No WebSocket URL in OTP response, using default');
+        return defaultUrl;
+    } catch (error) {
+        console.error('[WS] Error in getSocketURL:', error);
+        return defaultUrl;
+    }
 };
 
 export const getDebugServiceWorker = () => {
