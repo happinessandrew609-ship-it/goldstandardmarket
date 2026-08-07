@@ -76,7 +76,7 @@ export const getSocketURL = async (): Promise<string> => {
             return defaultUrl;
         }
 
-        const proxyUrl = `${window.location.origin}/.netlify/functions/deriv-proxy`;
+        const proxyUrl = `${window.location.origin}/api/deriv-proxy`;
 
         // Step 1: Get accounts list
         console.log('[WS] Fetching accounts via proxy...');
