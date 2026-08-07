@@ -184,15 +184,40 @@ export class OAuthTokenExchangeService {
                 };
             }
 
-            // Deriv returns token1 (Deriv API token) and acct1 (account ID) alongside standard OAuth fields
             const derivToken = (data.token1 as string) || (data.access_token as string) || '';
             const derivAccountId = (data.acct1 as string) || '';
             const accessToken = (data.access_token as string) || '';
 
             console.log('[OAuth] Has token1:', !!data.token1, 'Has acct1:', !!data.acct1, 'Has access_token:', !!data.access_token);
 
-            // Use token1 (Deriv API token) for WebSocket authorize, or access_token as fallback
-            const wsToken = derivToken || accessToken;
+            // The Ory access_token needs to be exchanged for Deriv API tokens via server proxy
+            let finalToken = accessToken;
+            let finalAccountId = derivAccountId;
+
+            // Use Netlify Function proxy to get accounts (avoids CORS)
+            try {
+                const proxyUrl = `${window.location.origin}/.netlify/functions/deriv-accounts`;
+                const proxyResp = await fetch(proxyUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ access_token: accessToken }),
+                });
+                if (proxyResp.ok) {
+                    const proxyData = await proxyResp.json();
+                    console.log('[OAuth] Proxy response:', JSON.stringify(proxyData).substring(0, 200));
+                    if (proxyData.loginid) {
+                        finalAccountId = proxyData.loginid;
+                    }
+                } else {
+                    const errText = await proxyResp.text();
+                    console.warn('[OAuth] Proxy failed:', proxyResp.status, errText.substring(0, 200));
+                }
+            } catch (proxyError) {
+                console.warn('[OAuth] Proxy call failed:', proxyError);
+            }
+
+            // Use token1 or access_token as fallback
+            const wsToken = finalToken || derivToken || accessToken;
 
             if (wsToken) {
                 // Clear the code verifier after successful exchange
