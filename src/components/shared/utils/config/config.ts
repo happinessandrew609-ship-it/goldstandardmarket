@@ -234,20 +234,13 @@ export const generateOAuthURL = async (prompt?: string) => {
             // Store token for validation after callback
             storeCSRFToken(csrfToken);
 
-            // Generate PKCE parameters
-            const codeVerifier = generateCodeVerifier();
-            const codeChallenge = await generateCodeChallenge(codeVerifier);
-
-            // Store code verifier for token exchange
-            storeCodeVerifier(codeVerifier);
-
             // Build redirect URL
             const protocol = window.location.protocol;
             const host = window.location.host;
             const redirectUrl = `${protocol}//${host}`;
 
-            // Build OAuth URL with PKCE parameters
-            let oauthUrl = `${hostname}auth?scope=trade&response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${csrfToken}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+            // Build OAuth URL - basic flow without PKCE first
+            let oauthUrl = `${hostname}auth?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${csrfToken}`;
 
             // Optional: prompt parameter (e.g. 'registration' for signup flow)
             if (prompt) {
