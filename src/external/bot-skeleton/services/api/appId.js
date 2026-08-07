@@ -92,9 +92,26 @@ export const generateDerivApiInstance = async (forceNew = false) => {
                 }
             });
 
-            // Log when connection opens
+            // Log when connection opens and authenticate with OAuth token
             deriv_socket.addEventListener('open', () => {
                 console.log('[DerivAPI] WebSocket connection established');
+
+                // If user is authenticated, send authorize with OAuth token
+                try {
+                    const authInfoStr = sessionStorage.getItem('auth_info');
+                    if (authInfoStr) {
+                        const authInfo = JSON.parse(authInfoStr);
+                        if (authInfo && authInfo.access_token) {
+                            console.log('[DerivAPI] Authenticating with OAuth token');
+                            deriv_socket.send(JSON.stringify({
+                                authorize: authInfo.access_token,
+                                req_id: 1,
+                            }));
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[DerivAPI] Failed to send authorize:', e);
+                }
             });
 
             deriv_socket.addEventListener('error', error => {
