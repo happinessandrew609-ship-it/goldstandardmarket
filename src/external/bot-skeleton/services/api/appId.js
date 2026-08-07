@@ -92,25 +92,52 @@ export const generateDerivApiInstance = async (forceNew = false) => {
                 }
             });
 
+            // Store auth token for message listener
+            let storedAuthToken = null;
+            try {
+                const authInfoStr = sessionStorage.getItem('auth_info');
+                if (authInfoStr) {
+                    const authInfo = JSON.parse(authInfoStr);
+                    if (authInfo && authInfo.access_token) {
+                        storedAuthToken = authInfo.access_token;
+                    }
+                }
+            } catch (e) {
+                // ignore
+            }
+
             // Log when connection opens and authenticate with OAuth token
             deriv_socket.addEventListener('open', () => {
                 console.log('[DerivAPI] WebSocket connection established');
 
-                // If user is authenticated, send authorize with OAuth token
+                if (storedAuthToken) {
+                    console.log('[DerivAPI] Authenticating with OAuth token');
+                    deriv_socket.send(JSON.stringify({
+                        authorize: storedAuthToken,
+                        req_id: 1,
+                    }));
+                }
+            });
+
+            // Listen for authorize response
+            deriv_socket.addEventListener('message', (event) => {
                 try {
-                    const authInfoStr = sessionStorage.getItem('auth_info');
-                    if (authInfoStr) {
-                        const authInfo = JSON.parse(authInfoStr);
-                        if (authInfo && authInfo.access_token) {
-                            console.log('[DerivAPI] Authenticating with OAuth token');
-                            deriv_socket.send(JSON.stringify({
-                                authorize: authInfo.access_token,
-                                req_id: 1,
-                            }));
+                    const data = JSON.parse(event.data);
+                    if (data.msg_type === 'authorize') {
+                        if (data.error) {
+                            console.error('[DerivAPI] Authorize error:', JSON.stringify(data.error));
+                        } else if (data.authorize) {
+                            console.log('[DerivAPI] Authorize success:', data.authorize.loginid);
+                            localStorage.setItem('active_loginid', data.authorize.loginid);
+                            const isDemo = data.authorize.loginid.startsWith('VRT') || data.authorize.loginid.startsWith('VRTC');
+                            localStorage.setItem('account_type', isDemo ? 'demo' : 'real');
+                            const accountsList = {};
+                            accountsList[data.authorize.loginid] = storedAuthToken;
+                            localStorage.setItem('accountsList', JSON.stringify(accountsList));
                         }
                     }
                 } catch (e) {
-                    console.warn('[DerivAPI] Failed to send authorize:', e);
+                    // Ignore non-JSON messages
                 }
             });
 
