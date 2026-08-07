@@ -98,9 +98,9 @@ export const generateDerivApiInstance = async (forceNew = false) => {
                 const authInfoStr = sessionStorage.getItem('auth_info');
                 if (authInfoStr) {
                     const authInfo = JSON.parse(authInfoStr);
-                    if (authInfo && authInfo.access_token) {
-                        storedAuthToken = authInfo.access_token;
-                    }
+                    // Prefer deriv_token (token1) over access_token for WebSocket authorize
+                    storedAuthToken = authInfo.deriv_token || authInfo.access_token;
+                    console.log('[DerivAPI] Token type:', authInfo.deriv_token ? 'deriv_token' : 'access_token');
                 }
             } catch (e) {
                 // ignore

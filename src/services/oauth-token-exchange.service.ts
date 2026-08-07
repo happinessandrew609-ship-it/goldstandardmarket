@@ -164,7 +164,9 @@ export class OAuthTokenExchangeService {
             });
 
             // Parse response
-            const data: TokenExchangeResponse = await response.json();
+            const data = await response.json() as Record<string, unknown>;
+
+            console.log('[OAuth] Token response keys:', Object.keys(data));
 
             // Check for errors in response
             if (data.error) {
@@ -173,31 +175,50 @@ export class OAuthTokenExchangeService {
                     description: data.error_description,
                 });
                 return {
-                    error: data.error,
-                    error_description: data.error_description,
+                    error: data.error as string,
+                    error_description: data.error_description as string,
                 };
             }
 
-            // Success - log token info (without exposing the actual token)
-            if (data.access_token) {
+            // Deriv returns token1 (Deriv API token) and acct1 (account ID) alongside standard OAuth fields
+            const derivToken = (data.token1 as string) || (data.access_token as string) || '';
+            const derivAccountId = (data.acct1 as string) || '';
+            const accessToken = (data.access_token as string) || '';
+
+            console.log('[OAuth] Has token1:', !!data.token1, 'Has acct1:', !!data.acct1, 'Has access_token:', !!data.access_token);
+
+            // Use token1 (Deriv API token) for WebSocket authorize, or access_token as fallback
+            const wsToken = derivToken || accessToken;
+
+            if (wsToken) {
                 // Clear the code verifier after successful exchange
                 clearCodeVerifier();
                 // Store authentication info in sessionStorage
-                const authInfo: AuthInfo = {
-                    access_token: data.access_token,
-                    token_type: data.token_type || 'bearer',
-                    expires_in: data.expires_in || 3600,
-                    expires_at: Date.now() + (data.expires_in || 3600) * 1000,
-                    scope: data.scope,
+                const authInfo = {
+                    access_token: wsToken,
+                    deriv_token: derivToken,
+                    token_type: (data.token_type as string) || 'bearer',
+                    expires_in: (data.expires_in as number) || 3600,
+                    expires_at: Date.now() + ((data.expires_in as number) || 3600) * 1000,
+                    scope: data.scope as string,
+                    refresh_token: data.refresh_token as string,
+                    account_id: derivAccountId,
                 };
-
-                // Include refresh token if provided
-                if (data.refresh_token) {
-                    authInfo.refresh_token = data.refresh_token;
-                }
 
                 // Store as JSON string
                 sessionStorage.setItem('auth_info', JSON.stringify(authInfo));
+
+                // Also store in localStorage for bot-skeleton compatibility
+                localStorage.setItem('authToken', wsToken);
+                if (derivAccountId) {
+                    localStorage.setItem('active_loginid', derivAccountId);
+                    const isDemo = derivAccountId.startsWith('VRT') || derivAccountId.startsWith('VRTC');
+                    localStorage.setItem('account_type', isDemo ? 'demo' : 'real');
+                    // Store accountsList format for bot-skeleton
+                    const accountsList: Record<string, string> = {};
+                    accountsList[derivAccountId] = wsToken;
+                    localStorage.setItem('accountsList', JSON.stringify(accountsList));
+                }
 
                 // Immediately fetch accounts and initialize WebSocket after token exchange
                 try {
@@ -240,7 +261,7 @@ export class OAuthTokenExchangeService {
                 }
             }
 
-            return data;
+            return data as unknown as TokenExchangeResponse;
         } catch (error: unknown) {
             ErrorLogger.error('OAuth', 'Token exchange network or parsing error', error);
             return {
