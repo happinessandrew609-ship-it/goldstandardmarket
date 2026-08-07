@@ -236,7 +236,9 @@ export class OAuthTokenExchangeService {
                     } catch (wsError) {
                         console.warn('[OAuth] WebSocket init error:', wsError);
                     }
-            }
+                } catch (error) {
+                    ErrorLogger.error('OAuth', 'Error after token exchange', error);
+                }
 
             return data;
         } catch (error: unknown) {
