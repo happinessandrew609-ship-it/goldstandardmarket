@@ -1,3 +1,48 @@
+const https = require('https');
+
+function httpsGet(url, token) {
+    return new Promise((resolve, reject) => {
+        const req = https.get(url, { headers: { Authorization: 'Bearer ' + token } }, (res) => {
+            let data = '';
+            res.on('data', (chunk) => { data += chunk; });
+            res.on('end', () => {
+                try {
+                    resolve({ status: res.statusCode, data: JSON.parse(data) });
+                } catch (e) {
+                    resolve({ status: res.statusCode, data: { raw: data } });
+                }
+            });
+        });
+        req.on('error', reject);
+        req.setTimeout(15000, () => { req.destroy(); reject(new Error('Request timeout')); });
+    });
+}
+
+function httpsPost(url, token) {
+    return new Promise((resolve, reject) => {
+        const urlObj = new URL(url);
+        const req = https.request({
+            hostname: urlObj.hostname,
+            path: urlObj.pathname,
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        }, (res) => {
+            let data = '';
+            res.on('data', (chunk) => { data += chunk; });
+            res.on('end', () => {
+                try {
+                    resolve({ status: res.statusCode, data: JSON.parse(data) });
+                } catch (e) {
+                    resolve({ status: res.statusCode, data: { raw: data } });
+                }
+            });
+        });
+        req.on('error', reject);
+        req.setTimeout(15000, () => { req.destroy(); reject(new Error('Request timeout')); });
+        req.end();
+    });
+}
+
 exports.handler = async (event) => {
     const headers = {
         'Access-Control-Allow-Origin': '*',
@@ -14,37 +59,28 @@ exports.handler = async (event) => {
     }
 
     try {
-        const { access_token, action, account_id } = JSON.parse(event.body || '{}');
+        const body = JSON.parse(event.body || '{}');
+        const { access_token, action, account_id } = body;
 
         if (!access_token) {
             return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing access_token' }) };
         }
 
-        const baseUrl = 'https://api.derivws.com/trading/v1';
-
         if (action === 'accounts') {
-            const response = await fetch(`${baseUrl}/accounts`, {
-                method: 'GET',
-                headers: { Authorization: `Bearer ${access_token}` },
-            });
-            const data = await response.json();
-            return { statusCode: response.status, headers, body: JSON.stringify(data) };
+            const result = await httpsGet('https://api.derivws.com/trading/v1/accounts', access_token);
+            return { statusCode: result.status, headers, body: JSON.stringify(result.data) };
         }
 
         if (action === 'otp') {
             if (!account_id) {
-                return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing account_id for OTP' }) };
+                return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing account_id' }) };
             }
-            const response = await fetch(`${baseUrl}/options/accounts/${account_id}/otp`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${access_token}` },
-            });
-            const data = await response.json();
-            return { statusCode: response.status, headers, body: JSON.stringify(data) };
+            const result = await httpsPost('https://api.derivws.com/trading/v1/options/accounts/' + account_id + '/otp', access_token);
+            return { statusCode: result.status, headers, body: JSON.stringify(result.data) };
         }
 
-        return { statusCode: 400, headers, body: JSON.stringify({ error: 'Unknown action. Use "accounts" or "otp".' }) };
+        return { statusCode: 400, headers, body: JSON.stringify({ error: 'Unknown action' }) };
     } catch (error) {
-        return { statusCode: 500, headers, body: JSON.stringify({ error: error.message }) };
+        return { statusCode: 500, headers, body: JSON.stringify({ error: error.message || String(error) }) };
     }
 };
