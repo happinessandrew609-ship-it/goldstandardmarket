@@ -168,9 +168,15 @@ export class OAuthTokenExchangeService {
 
             console.log('[OAuth] Token response keys:', Object.keys(data));
             // Log token lengths and prefixes for debugging (no full tokens)
-            console.log('[OAuth] token1:', data.token1 ? `${String(data.token1).substring(0,4)}...(${String(data.token1).length} chars)` : 'NONE');
+            if (data.token1) {
+                console.log('[OAuth] token1:', `${String(data.token1).substring(0,4)}...(${String(data.token1).length} chars)`);
+            } else {
+                console.warn('[OAuth] token1: NOT PRESENT in response. This is needed for WebSocket authorize.');
+            }
             console.log('[OAuth] acct1:', data.acct1 || 'NONE');
-            console.log('[OAuth] access_token:', data.access_token ? `${String(data.access_token).substring(0,4)}...(${String(data.access_token).length} chars)` : 'NONE');
+            if (data.access_token) {
+                console.log('[OAuth] access_token:', `${String(data.access_token).substring(0,4)}...(${String(data.access_token).length} chars)`);
+            }
 
             // Check for errors in response
             if (data.error) {
@@ -184,47 +190,28 @@ export class OAuthTokenExchangeService {
                 };
             }
 
-            const derivToken = (data.token1 as string) || (data.access_token as string) || '';
+            const derivToken = (data.token1 as string) || '';
             const derivAccountId = (data.acct1 as string) || '';
             const accessToken = (data.access_token as string) || '';
 
             console.log('[OAuth] Has token1:', !!data.token1, 'Has acct1:', !!data.acct1, 'Has access_token:', !!data.access_token);
 
-            // The Ory access_token needs to be exchanged for Deriv API tokens via server proxy
-            let finalToken = accessToken;
-            let finalAccountId = derivAccountId;
-
-            // Use Netlify Function proxy to get accounts (avoids CORS)
-            try {
-                const proxyUrl = `${window.location.origin}/.netlify/functions/deriv-accounts`;
-                const proxyResp = await fetch(proxyUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ access_token: accessToken }),
-                });
-                if (proxyResp.ok) {
-                    const proxyData = await proxyResp.json();
-                    console.log('[OAuth] Proxy response:', JSON.stringify(proxyData).substring(0, 200));
-                    if (proxyData.loginid) {
-                        finalAccountId = proxyData.loginid;
-                    }
-                } else {
-                    const errText = await proxyResp.text();
-                    console.warn('[OAuth] Proxy failed:', proxyResp.status, errText.substring(0, 200));
-                }
-            } catch (proxyError) {
-                console.warn('[OAuth] Proxy call failed:', proxyError);
+            if (derivToken) {
+                console.log('[OAuth] SUCCESS: token1 is the short Deriv API token for WebSocket authorize');
+            } else {
+                console.error('[OAuth] WARNING: token1 NOT returned. WebSocket authorize will not work.');
+                console.error('[OAuth] The OAuth response must include token1 (Deriv API token) for WebSocket authentication.');
             }
 
-            // Use token1 or access_token as fallback
-            const wsToken = finalToken || derivToken || accessToken;
-
-            if (wsToken) {
+            if (derivToken || accessToken) {
                 // Clear the code verifier after successful exchange
                 clearCodeVerifier();
+
                 // Store authentication info in sessionStorage
+                // deriv_token = token1 (short Deriv API token for WebSocket)
+                // access_token = Ory access token (for REST API calls)
                 const authInfo = {
-                    access_token: wsToken,
+                    access_token: accessToken,
                     deriv_token: derivToken,
                     token_type: (data.token_type as string) || 'bearer',
                     expires_in: (data.expires_in as number) || 3600,
@@ -238,55 +225,30 @@ export class OAuthTokenExchangeService {
                 sessionStorage.setItem('auth_info', JSON.stringify(authInfo));
 
                 // Also store in localStorage for bot-skeleton compatibility
-                localStorage.setItem('authToken', wsToken);
+                // Use token1 (derivToken) for the bot, NOT the Ory access_token
+                const botToken = derivToken || accessToken;
+                localStorage.setItem('authToken', botToken);
                 if (derivAccountId) {
                     localStorage.setItem('active_loginid', derivAccountId);
                     const isDemo = derivAccountId.startsWith('VRT') || derivAccountId.startsWith('VRTC');
                     localStorage.setItem('account_type', isDemo ? 'demo' : 'real');
                     // Store accountsList format for bot-skeleton
                     const accountsList: Record<string, string> = {};
-                    accountsList[derivAccountId] = wsToken;
+                    accountsList[derivAccountId] = botToken;
                     localStorage.setItem('accountsList', JSON.stringify(accountsList));
                 }
 
-                // Immediately fetch accounts and initialize WebSocket after token exchange
-                try {
-                    const { DerivWSAccountsService } = await import('./derivws-accounts.service');
-
-                    // Try to fetch accounts, but don't fail if REST API doesn't work
-                    try {
-                        const accounts = await DerivWSAccountsService.fetchAccountsList(data.access_token);
-
-                        if (accounts && accounts.length > 0) {
-                            // Store accounts
-                            DerivWSAccountsService.storeAccounts(accounts);
-
-                            // Set the first account as active in localStorage
-                            const firstAccount = accounts[0];
-                            localStorage.setItem('active_loginid', firstAccount.account_id);
-
-                            // Set account type
-                            const isDemo =
-                                firstAccount.account_id.startsWith('VRT') || firstAccount.account_id.startsWith('VRTC');
-                            localStorage.setItem('account_type', isDemo ? 'demo' : 'real');
-
-                            ErrorLogger.info('OAuth', 'Accounts fetched and stored', {
-                                loginid: firstAccount.account_id,
-                            });
-                        }
-                    } catch (accountsError) {
-                        console.warn('[OAuth] REST accounts fetch failed, proceeding with token:', accountsError);
-                    }
-
-                    // Always try to initialize WebSocket even if accounts fetch failed
-                    try {
-                        const { api_base } = await import('@/external/bot-skeleton');
-                        await api_base.init(true);
-                    } catch (wsError) {
-                        console.warn('[OAuth] WebSocket init error:', wsError);
-                    }
-                } catch (error) {
-                    ErrorLogger.error('OAuth', 'Error after token exchange', error);
+                // Log success
+                if (derivToken) {
+                    ErrorLogger.info('OAuth', 'Token exchange successful', {
+                        has_token1: true,
+                        account_id: derivAccountId,
+                    });
+                } else {
+                    ErrorLogger.info('OAuth', 'Token exchange completed but token1 not present', {
+                        has_access_token: !!accessToken,
+                        account_id: derivAccountId,
+                    });
                 }
             }
 

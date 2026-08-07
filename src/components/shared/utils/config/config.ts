@@ -1,5 +1,3 @@
-import { DerivWSAccountsService } from '@/services/derivws-accounts.service';
-import { OAuthTokenExchangeService } from '@/services/oauth-token-exchange.service';
 import brandConfig from '../../../../../brand.config.json';
 
 // =============================================================================
@@ -16,11 +14,10 @@ export const STAGING_DOMAINS = {
     COM: brandConfig.platform.hostname.staging.com,
 } as const;
 
-// WebSocket server URLs
-const OAUTH_CLIENT_ID = '342vx4HbkVVPtJejdGKP1';
+// Deriv WebSocket URLs (must be wss:// for WebSocket connections)
 export const WS_SERVERS = {
-    STAGING: `${brandConfig.platform.derivws.url.staging}options/ws/public?client_id=${OAUTH_CLIENT_ID}`,
-    PRODUCTION: `${brandConfig.platform.derivws.url.production}options/ws/public?client_id=${OAUTH_CLIENT_ID}`,
+    STAGING: 'wss://staging-ws.derivws.com/websockets/v3',
+    PRODUCTION: 'wss://ws.derivws.com/websockets/v3',
 } as const;
 
 // =============================================================================
@@ -50,31 +47,15 @@ const getDefaultServerURL = () => {
 };
 
 /**
- * Gets the WebSocket URL using the new authenticated flow
- * This function orchestrates the complete flow:
- * 1. Get access token from auth_info
- * 2. Fetch accounts list from derivatives/accounts
- * 3. Store accounts in sessionStorage
- * 4. Get default account (first from list)
- * 5. Fetch OTP and WebSocket URL for that account
+ * Gets the WebSocket URL for Deriv API connection.
+ * Authentication happens via the `authorize` WebSocket message using the OAuth token,
+ * not via the URL itself.
  *
- * @returns Promise with WebSocket URL or fallback to default server
+ * @returns WebSocket URL
  */
 export const getSocketURL = async (): Promise<string> => {
-    try {
-        // Check if user is authenticated
-        const authInfo = OAuthTokenExchangeService.getAuthInfo();
-        if (!authInfo || !authInfo.access_token) {
-            return getDefaultServerURL();
-        }
-
-        // Use the DerivWSAccountsService to get authenticated WebSocket URL
-        const wsUrl = await DerivWSAccountsService.getAuthenticatedWebSocketURL(authInfo.access_token);
-        return wsUrl;
-    } catch (error) {
-        console.error('[DerivWS] Error in getSocketURL:', error);
-        return getDefaultServerURL();
-    }
+    const isProductionEnv = isProduction();
+    return isProductionEnv ? WS_SERVERS.PRODUCTION : WS_SERVERS.STAGING;
 };
 
 export const getDebugServiceWorker = () => {

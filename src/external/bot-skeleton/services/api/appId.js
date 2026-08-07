@@ -98,9 +98,15 @@ export const generateDerivApiInstance = async (forceNew = false) => {
                 const authInfoStr = sessionStorage.getItem('auth_info');
                 if (authInfoStr) {
                     const authInfo = JSON.parse(authInfoStr);
-                    // Prefer deriv_token (token1) over access_token for WebSocket authorize
-                    storedAuthToken = authInfo.deriv_token || authInfo.access_token;
-                    console.log('[DerivAPI] Token type:', authInfo.deriv_token ? 'deriv_token' : 'access_token');
+                    // Use deriv_token (token1 - short Deriv API token) for WebSocket authorize
+                    // The Ory access_token is too long (>128 chars) and won't work with authorize
+                    storedAuthToken = authInfo.deriv_token || null;
+                    if (!storedAuthToken) {
+                        console.warn('[DerivAPI] No deriv_token (token1) found in auth_info. OAuth may not have returned token1.');
+                        console.warn('[DerivAPI] Check console for [OAuth] token1: log to see what was returned.');
+                    } else {
+                        console.log('[DerivAPI] Using deriv_token (token1) for authorize:', storedAuthToken.substring(0, 4) + '...(' + storedAuthToken.length + ' chars)');
+                    }
                 }
             } catch (e) {
                 // ignore
