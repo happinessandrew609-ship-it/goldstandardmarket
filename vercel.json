@@ -1,4 +1,9 @@
 {
   "buildCommand": "npm run build",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "functions": {
+    "api/deriv-proxy.js": {
+      "runtime": "@vercel/node@3"
+    }
+  }
 }
