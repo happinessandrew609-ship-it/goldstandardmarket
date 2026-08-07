@@ -14,10 +14,11 @@ export const STAGING_DOMAINS = {
     COM: brandConfig.platform.hostname.staging.com,
 } as const;
 
-// Deriv WebSocket URLs (must be wss:// for WebSocket connections)
+// Deriv WebSocket URLs
+const OAUTH_CLIENT_ID = '342vx4HbkVVPtJejdGKP1';
 export const WS_SERVERS = {
-    STAGING: 'wss://staging-ws.derivws.com/websockets/v3',
-    PRODUCTION: 'wss://ws.derivws.com/websockets/v3',
+    STAGING: `wss://staging-api.derivws.com/trading/v1/options/ws/public?app_id=342`,
+    PRODUCTION: `wss://api.derivws.com/trading/v1/options/ws/public?app_id=342`,
 } as const;
 
 // =============================================================================
