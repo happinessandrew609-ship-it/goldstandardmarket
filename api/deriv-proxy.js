@@ -45,10 +45,15 @@ module.exports = async function handler(req, res) {
             return res.status(400).json({ error: 'Missing access_token' });
         }
 
+        const baseHeaders = {
+            Authorization: 'Bearer ' + access_token,
+            'Deriv-App-ID': '342',
+        };
+
         if (action === 'accounts') {
-            const result = await httpsRequest('https://api.derivws.com/trading/v1/accounts', {
+            const result = await httpsRequest('https://api.derivws.com/trading/v1/options/accounts', {
                 method: 'GET',
-                headers: { Authorization: 'Bearer ' + access_token },
+                headers: baseHeaders,
             });
             return res.status(result.status).json(result.data);
         }
@@ -59,7 +64,7 @@ module.exports = async function handler(req, res) {
             }
             const result = await httpsRequest('https://api.derivws.com/trading/v1/options/accounts/' + encodeURIComponent(account_id) + '/otp', {
                 method: 'POST',
-                headers: { Authorization: 'Bearer ' + access_token },
+                headers: baseHeaders,
             });
             return res.status(result.status).json(result.data);
         }
