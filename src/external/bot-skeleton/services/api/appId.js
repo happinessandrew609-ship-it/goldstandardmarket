@@ -73,8 +73,8 @@ export const generateDerivApiInstance = async (forceNew = false) => {
 
             currentWebSocketURL = wsURL;
 
-            // OTP URLs have auth tokens embedded - no manual authorize needed
-            const isOTPUrl = wsURL.includes('token=') || wsURL.includes('auth_token=') || wsURL.includes('otp=');
+            // Check if URL has auth tokens embedded (OTP, token, or old OAuth token1)
+            const isOTPUrl = wsURL.includes('token=') || wsURL.includes('auth_token=') || wsURL.includes('otp=') || wsURL.includes('token1=');
             console.log('[DerivAPI] Creating new WebSocket connection to:', wsURL.substring(0, 80) + '...');
             console.log('[DerivAPI] URL type:', isOTPUrl ? 'OTP (auth embedded)' : 'Plain (needs authorize)');
             const deriv_socket = new WebSocket(wsURL);
@@ -98,7 +98,6 @@ export const generateDerivApiInstance = async (forceNew = false) => {
             // Log when connection opens
             deriv_socket.addEventListener('open', () => {
                 console.log('[DerivAPI] WebSocket connection established');
-                // OTP URLs are already authenticated - no authorize needed
                 if (isOTPUrl) {
                     console.log('[DerivAPI] Connected via OTP URL (already authenticated)');
                 }

@@ -258,6 +258,23 @@ class APIBase {
         setIsAuthorizing(true);
 
         try {
+            // Send authorize with token from localStorage before calling balance
+            // This is needed for the old OAuth flow where token1 is stored in localStorage
+            const authToken = localStorage.getItem('authToken');
+            if (authToken) {
+                console.log('[APIBase] Sending authorize with stored token');
+                try {
+                    const authResult = await this.api.authorize(authToken);
+                    if (authResult.error) {
+                        console.error('[APIBase] Authorize error:', JSON.stringify(authResult.error));
+                    } else if (authResult.authorize) {
+                        console.log('[APIBase] Authorize success:', authResult.authorize.loginid);
+                    }
+                } catch (authErr) {
+                    console.error('[APIBase] Authorize call failed:', authErr);
+                }
+            }
+
             const { balance, error } = await this.api.balance();
 
             if (error) {

@@ -6,10 +6,8 @@ import LocalStorageSyncWrapper from '@/components/localStorage-sync-wrapper';
 import RoutePromptDialog from '@/components/route-prompt-dialog';
 import { useAccountSwitching } from '@/hooks/useAccountSwitching';
 import { useLanguageFromURL } from '@/hooks/useLanguageFromURL';
-import { useOAuthCallback } from '@/hooks/useOAuthCallback';
 import { StoreProvider } from '@/hooks/useStore';
-import { OAuthTokenExchangeService } from '@/services/oauth-token-exchange.service';
-import { clearDerivApiInstance, generateDerivApiInstance } from '@/external/bot-skeleton/services/api/appId';
+import { clearDerivApiInstance } from '@/external/bot-skeleton/services/api/appId';
 import { initializeI18n, localize, TranslationProvider } from '@deriv-com/translations';
 import CoreStoreProvider from './CoreStoreProvider';
 import './app-root.scss';
@@ -60,50 +58,99 @@ const router = createBrowserRouter(
 );
 
 /**
+ * Handles old Deriv OAuth callback (token1/acct1 in URL params)
+ * Returns true if old flow was handled
+ */
+function handleOldOAuthCallback(): boolean {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token1 = urlParams.get('token1');
+    const acct1 = urlParams.get('acct1');
+    const cur1 = urlParams.get('cur1');
+
+    if (!token1) return false;
+
+    console.log('[Auth] Old OAuth callback detected (token1)');
+
+    // Store token1 as authToken for bot-skeleton
+    localStorage.setItem('authToken', token1);
+
+    // Store account ID
+    if (acct1) {
+        localStorage.setItem('active_loginid', acct1);
+        const isDemo = acct1.startsWith('VRT') || acct1.startsWith('VRTC');
+        localStorage.setItem('account_type', isDemo ? 'demo' : 'real');
+    }
+
+    // Store accountsList format for bot-skeleton compatibility
+    if (acct1 && token1) {
+        const accountsList: Record<string, string> = {};
+        accountsList[acct1] = token1;
+        localStorage.setItem('accountsList', JSON.stringify(accountsList));
+    }
+
+    // Store currency if available
+    if (cur1 && acct1) {
+        const clientAccounts = JSON.parse(localStorage.getItem('client_account_details') || '[]');
+        const existingIdx = clientAccounts.findIndex((a: any) => a.loginid === acct1);
+        const accountData = {
+            balance: 0,
+            currency: cur1.toUpperCase(),
+            is_virtual: acct1.startsWith('VRT') || acct1.startsWith('VRTC') ? 1 : 0,
+            loginid: acct1,
+        };
+        if (existingIdx >= 0) {
+            clientAccounts[existingIdx] = { ...clientAccounts[existingIdx], ...accountData };
+        } else {
+            clientAccounts.push(accountData);
+        }
+        localStorage.setItem('client_account_details', JSON.stringify(clientAccounts));
+    }
+
+    // Clean URL params
+    const url = new URL(window.location.href);
+    url.searchParams.delete('token1');
+    url.searchParams.delete('acct1');
+    url.searchParams.delete('token2');
+    url.searchParams.delete('acct2');
+    url.searchParams.delete('cur1');
+    url.searchParams.delete('cur2');
+    url.searchParams.delete('state');
+    window.history.replaceState({}, '', url.toString());
+
+    console.log('[Auth] Old OAuth: token1 stored, clearing old API instance');
+    clearDerivApiInstance();
+
+    return true;
+}
+
+/**
  * Main App component
  *
  * Responsibilities:
- * 1. OAuth callback handling (via useOAuthCallback hook)
+ * 1. OAuth callback handling (old flow: token1/acct1)
  * 2. Account switching from URL (via useAccountSwitching hook)
  * 3. Router provider setup
- *
- * All complex logic has been extracted into custom hooks for better maintainability
  */
 function App() {
-    // Handle OAuth callback flow (CSRF validation + code extraction)
-    const { isProcessing, isValid, params, error, cleanupURL } = useOAuthCallback();
-    const hasOAuthParams = new URLSearchParams(window.location.search).has('code');
-    const [authReady, setAuthReady] = useState(!hasOAuthParams);
+    // Handle old Deriv OAuth callback (token1/acct1 in URL)
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasOldOAuthParams = urlParams.has('token1');
+    const [authReady, setAuthReady] = useState(!hasOldOAuthParams);
 
     // Handle account switching via URL parameter
     useAccountSwitching();
 
-    // Process the authorization code when OAuth callback is valid
+    // Process old OAuth callback on mount
     React.useEffect(() => {
-        if (!isProcessing) {
-            if (isValid && params.code) {
-                OAuthTokenExchangeService.exchangeCodeForToken(params.code)
-                    .then(response => {
-                        if (response.access_token) {
-                            cleanupURL();
-                        } else if (response.error) {
-                            console.error('Token exchange failed:', response.error);
-                            cleanupURL();
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Token exchange request failed:', err);
-                        cleanupURL();
-                    })
-                    .finally(() => {
-                        clearDerivApiInstance();
-                        setAuthReady(true);
-                    });
+        if (hasOldOAuthParams) {
+            const handled = handleOldOAuthCallback();
+            if (handled) {
+                setAuthReady(true);
             } else {
                 setAuthReady(true);
             }
         }
-    }, [isProcessing, isValid, params.code, error, cleanupURL]);
+    }, [hasOldOAuthParams]);
 
     if (!authReady) {
         return (

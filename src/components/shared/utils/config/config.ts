@@ -50,106 +50,28 @@ const getDefaultServerURL = () => {
 /**
  * Gets the WebSocket URL for Deriv API connection.
  *
- * Flow:
- * 1. Get Ory access_token from sessionStorage (from OAuth)
- * 2. Use Netlify Function proxy to call Deriv REST API (avoids CORS)
- * 3. Get accounts list, then OTP for the active account
- * 4. OTP returns an authenticated WebSocket URL
- *
- * Falls back to plain WebSocket URL if proxy fails.
+ * Uses old Deriv OAuth flow which returns token1 (short a1-xxx token) directly.
+ * Token is stored in localStorage as 'authToken' and used via WebSocket 'authorize' command.
  *
  * @returns WebSocket URL
  */
 export const getSocketURL = async (): Promise<string> => {
     const defaultUrl = isProduction() ? WS_SERVERS.PRODUCTION : WS_SERVERS.STAGING;
 
-    try {
-        let authInfoStr = sessionStorage.getItem('auth_info');
-
-        if (!authInfoStr && new URLSearchParams(window.location.search).has('code')) {
-            console.log('[WS] OAuth callback detected, waiting for token exchange to complete...');
-            for (let i = 0; i < 50; i++) {
-                await new Promise(resolve => setTimeout(resolve, 200));
-                authInfoStr = sessionStorage.getItem('auth_info');
-                if (authInfoStr) {
-                    console.log('[WS] auth_info found after waiting');
-                    break;
-                }
+    // Wait briefly for OAuth callback to complete (old flow stores token1 in localStorage)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('token1')) {
+        console.log('[WS] Old OAuth callback detected (token1), waiting for localStorage...');
+        for (let i = 0; i < 30; i++) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+            if (localStorage.getItem('authToken')) {
+                console.log('[WS] authToken found in localStorage');
+                break;
             }
         }
-
-        if (!authInfoStr) {
-            console.log('[WS] No auth_info, using default URL');
-            return defaultUrl;
-        }
-
-        const authInfo = JSON.parse(authInfoStr);
-        const accessToken = authInfo.access_token;
-        if (!accessToken) {
-            console.log('[WS] No access_token, using default URL');
-            return defaultUrl;
-        }
-
-        const proxyUrl = `${window.location.origin}/api/deriv-proxy`;
-
-        // Step 1: Get accounts list
-        console.log('[WS] Fetching accounts via proxy...');
-        const accountsResp = await fetch(proxyUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ access_token: accessToken, action: 'accounts' }),
-        });
-
-        if (!accountsResp.ok) {
-            console.warn('[WS] Accounts fetch failed:', accountsResp.status);
-            return defaultUrl;
-        }
-
-        const accountsData = await accountsResp.json();
-        console.log('[WS] Accounts response:', JSON.stringify(accountsData).substring(0, 300));
-
-        const accounts = accountsData?.data;
-        if (!accounts || accounts.length === 0) {
-            console.warn('[WS] No accounts found');
-            return defaultUrl;
-        }
-
-        // Step 2: Pick the active account
-        const activeLoginId = localStorage.getItem('active_loginid');
-        const targetAccount = accounts.find((a) => (a.loginid || a.account_id) === activeLoginId) || accounts[0];
-        const accountId = targetAccount.loginid || targetAccount.account_id;
-
-        console.log('[WS] Target account:', accountId);
-
-        // Step 3: Get OTP WebSocket URL
-        console.log('[WS] Fetching OTP via proxy...');
-        const otpResp = await fetch(proxyUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ access_token: accessToken, action: 'otp', account_id: accountId }),
-        });
-
-        if (!otpResp.ok) {
-            console.warn('[WS] OTP fetch failed:', otpResp.status);
-            return defaultUrl;
-        }
-
-        const otpData = await otpResp.json();
-        console.log('[WS] OTP response:', JSON.stringify(otpData).substring(0, 300));
-
-        // The OTP response contains a WebSocket URL with credentials embedded
-        const wsUrl = otpData?.data?.url;
-        if (wsUrl) {
-            console.log('[WS] Got authenticated WebSocket URL from OTP');
-            return wsUrl;
-        }
-
-        console.warn('[WS] No WebSocket URL in OTP response, using default');
-        return defaultUrl;
-    } catch (error) {
-        console.error('[WS] Error in getSocketURL:', error);
-        return defaultUrl;
     }
+
+    return defaultUrl;
 };
 
 export const getDebugServiceWorker = () => {
@@ -298,51 +220,29 @@ export const clearCSRFToken = (): void => {
 
 export const generateOAuthURL = async (prompt?: string) => {
     try {
-        // Use brand config for login URLs
-        const environment = isProduction() ? 'production' : 'staging';
-        const hostname = brandConfig?.platform.auth2_url?.[environment];
-            const clientId = '342vx4HbkVVPtJejdGKP1';
+        // Old Deriv OAuth flow returns token1 (short a1-xxx token) directly in URL
+        // This is compatible with WebSocket authorize command
+        const appId = '342';
 
-        if (hostname && clientId) {
-            // Generate CSRF token for security
-            const csrfToken = generateCSRFToken();
+        // Build redirect URL
+        const protocol = window.location.protocol;
+        const host = window.location.host;
+        const redirectUrl = `${protocol}//${host}`;
 
-            // Store token for validation after callback
-            storeCSRFToken(csrfToken);
+        // Build OAuth URL using old Deriv OAuth endpoint
+        let oauthUrl = `https://oauth.deriv.com/oauth2/authorize?app_id=${appId}&redirect_uri=${encodeURIComponent(redirectUrl)}`;
 
-            // Generate PKCE parameters (required by Deriv's server)
-            const codeVerifier = generateCodeVerifier();
-            const codeChallenge = await generateCodeChallenge(codeVerifier);
-
-            // Store code verifier for token exchange
-            storeCodeVerifier(codeVerifier);
-
-            // Build redirect URL
-            const protocol = window.location.protocol;
-            const host = window.location.host;
-            const redirectUrl = `${protocol}//${host}`;
-
-            // Build OAuth URL with PKCE parameters and scopes for REST API access
-            let oauthUrl = `${hostname}auth?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${csrfToken}&code_challenge=${codeChallenge}&code_challenge_method=S256&scope=trade`;`
-
-            // Optional: prompt parameter (e.g. 'registration' for signup flow)
-            if (prompt) {
-                oauthUrl += `&prompt=${encodeURIComponent(prompt)}`;
-            }
-
-            // Optional: legacy app_id for routing users on the Legacy Deriv API platform
-            const appId = process.env.APP_ID;
-            if (appId) {
-                oauthUrl += `&app_id=${encodeURIComponent(appId)}`;
-            }
-
-            console.log('OAuth URL:', oauthUrl);
-            return oauthUrl;
+        // Optional: prompt parameter (e.g. 'registration' for signup flow)
+        if (prompt) {
+            oauthUrl += `&prompt=${encodeURIComponent(prompt)}`;
         }
+
+        console.log('OAuth URL:', oauthUrl);
+        return oauthUrl;
     } catch (error) {
         console.error('Error generating OAuth URL:', error);
     }
 
-    // Fallback to hardcoded URLs if brand config fails
+    // Fallback to empty URL if generation fails
     return ``;
 };
