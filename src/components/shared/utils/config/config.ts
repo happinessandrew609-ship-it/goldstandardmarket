@@ -322,8 +322,8 @@ export const generateOAuthURL = async (prompt?: string) => {
             const host = window.location.host;
             const redirectUrl = `${protocol}//${host}`;
 
-            // Build OAuth URL with PKCE parameters
-            let oauthUrl = `${hostname}auth?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${csrfToken}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+            // Build OAuth URL with PKCE parameters and scopes for REST API access
+            let oauthUrl = `${hostname}auth?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${csrfToken}&code_challenge=${codeChallenge}&code_challenge_method=S256&scope=trade`;`
 
             // Optional: prompt parameter (e.g. 'registration' for signup flow)
             if (prompt) {
