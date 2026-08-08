@@ -8,6 +8,8 @@ import { useAccountSwitching } from '@/hooks/useAccountSwitching';
 import { useLanguageFromURL } from '@/hooks/useLanguageFromURL';
 import { StoreProvider } from '@/hooks/useStore';
 import { clearDerivApiInstance } from '@/external/bot-skeleton/services/api/appId';
+import { validateCSRFToken, clearCSRFToken } from '@/components/shared/utils/config/config';
+import { OAuthTokenExchangeService } from '@/services/oauth-token-exchange.service';
 import { initializeI18n, localize, TranslationProvider } from '@deriv-com/translations';
 import CoreStoreProvider from './CoreStoreProvider';
 import './app-root.scss';
@@ -124,33 +126,110 @@ function handleOldOAuthCallback(): boolean {
 }
 
 /**
+ * Handles PKCE OAuth2 callback (code + state in URL params)
+ * Returns a promise that resolves to true if PKCE flow was handled
+ */
+async function handlePKCECallback(): Promise<boolean> {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const state = urlParams.get('state');
+    const error = urlParams.get('error');
+    const errorDescription = urlParams.get('error_description');
+
+    // Not a PKCE callback
+    if (!code && !error && !state) return false;
+
+    // Handle error response
+    if (error) {
+        console.error('[Auth] PKCE OAuth error:', error, errorDescription);
+        // Clean URL and return
+        const url = new URL(window.location.href);
+        url.searchParams.delete('error');
+        url.searchParams.delete('error_description');
+        url.searchParams.delete('state');
+        window.history.replaceState({}, '', url.toString());
+        return true;
+    }
+
+    // Validate state (CSRF token)
+    if (!state) {
+        console.error('[Auth] PKCE callback missing state parameter');
+        return true;
+    }
+
+    if (!validateCSRFToken(state)) {
+        console.error('[Auth] PKCE callback CSRF validation failed');
+        clearCSRFToken();
+        return true;
+    }
+
+    // CSRF validation passed - exchange code for token
+    clearCSRFToken();
+
+    if (!code) {
+        console.error('[Auth] PKCE callback missing authorization code');
+        return true;
+    }
+
+    console.log('[Auth] PKCE callback detected, exchanging code for token...');
+
+    try {
+        const result = await OAuthTokenExchangeService.exchangeCodeForToken(code);
+
+        if (result.error) {
+            console.error('[Auth] Token exchange failed:', result.error, result.error_description);
+            return true;
+        }
+
+        console.log('[Auth] Token exchange successful');
+
+        // Clean URL params
+        const url = new URL(window.location.href);
+        url.searchParams.delete('code');
+        url.searchParams.delete('state');
+        url.searchParams.delete('scope');
+        window.history.replaceState({}, '', url.toString());
+
+        // Clear old API instance to force reconnection with new token
+        clearDerivApiInstance();
+
+        return true;
+    } catch (err) {
+        console.error('[Auth] Token exchange error:', err);
+        return true;
+    }
+}
+
+/**
  * Main App component
  *
  * Responsibilities:
- * 1. OAuth callback handling (old flow: token1/acct1)
+ * 1. OAuth callback handling (old flow: token1/acct1 + PKCE: code/state)
  * 2. Account switching from URL (via useAccountSwitching hook)
  * 3. Router provider setup
  */
 function App() {
-    // Handle old Deriv OAuth callback (token1/acct1 in URL)
+    // Check for any OAuth callback params (old flow or PKCE)
     const urlParams = new URLSearchParams(window.location.search);
     const hasOldOAuthParams = urlParams.has('token1');
-    const [authReady, setAuthReady] = useState(!hasOldOAuthParams);
+    const hasPKCEParams = urlParams.has('code') || urlParams.has('error');
+    const hasOAuthCallback = hasOldOAuthParams || hasPKCEParams;
+    const [authReady, setAuthReady] = useState(!hasOAuthCallback);
 
     // Handle account switching via URL parameter
     useAccountSwitching();
 
-    // Process old OAuth callback on mount
+    // Process OAuth callback on mount
     React.useEffect(() => {
         if (hasOldOAuthParams) {
             const handled = handleOldOAuthCallback();
-            if (handled) {
+            setAuthReady(true);
+        } else if (hasPKCEParams) {
+            handlePKCECallback().then(() => {
                 setAuthReady(true);
-            } else {
-                setAuthReady(true);
-            }
+            });
         }
-    }, [hasOldOAuthParams]);
+    }, [hasOldOAuthParams, hasPKCEParams]);
 
     if (!authReady) {
         return (

@@ -220,24 +220,41 @@ export const clearCSRFToken = (): void => {
 
 export const generateOAuthURL = async (prompt?: string) => {
     try {
-        // Old Deriv OAuth flow returns token1 (short a1-xxx token) directly in URL
-        // This is compatible with WebSocket authorize command
-        const appId = '342';
+        // PKCE OAuth2 flow via auth.deriv.com
+        // old oauth.deriv.com is dead (301 redirects to deriv.com)
+        const clientId = '342vx4HbkVVPtJejdGKP1';
 
         // Build redirect URL
         const protocol = window.location.protocol;
         const host = window.location.host;
         const redirectUrl = `${protocol}//${host}`;
 
-        // Build OAuth URL using old Deriv OAuth endpoint
-        let oauthUrl = `https://oauth.deriv.com/oauth2/authorize?app_id=${appId}&redirect_uri=${encodeURIComponent(redirectUrl)}`;
+        // Generate PKCE code verifier (random string)
+        const codeVerifier = generateCodeVerifier();
+        storeCodeVerifier(codeVerifier);
 
-        // Optional: prompt parameter (e.g. 'registration' for signup flow)
+        // Generate PKCE code challenge (SHA-256 hash of verifier)
+        const codeChallenge = await generateCodeChallenge(codeVerifier);
+
+        // Generate CSRF token for state parameter
+        const csrfToken = generateCSRFToken();
+        storeCSRFToken(csrfToken);
+
+        // Build OAuth2 PKCE URL
+        let oauthUrl = `https://auth.deriv.com/oauth2/auth?` +
+            `scope=trade` +
+            `&response_type=code` +
+            `&client_id=${encodeURIComponent(clientId)}` +
+            `&redirect_uri=${encodeURIComponent(redirectUrl)}` +
+            `&state=${encodeURIComponent(csrfToken)}` +
+            `&code_challenge=${encodeURIComponent(codeChallenge)}` +
+            `&code_challenge_method=S256`;
+
         if (prompt) {
             oauthUrl += `&prompt=${encodeURIComponent(prompt)}`;
         }
 
-        console.log('OAuth URL:', oauthUrl);
+        console.log('[Auth] OAuth URL (PKCE):', oauthUrl.substring(0, 100) + '...');
         return oauthUrl;
     } catch (error) {
         console.error('Error generating OAuth URL:', error);
