@@ -1,4 +1,4 @@
-import { clearCodeVerifier, getCodeVerifier, isProduction } from '@/components/shared';
+import { clearCodeVerifier, getCodeVerifier, isProduction, OAUTH_CLIENT_ID, OAUTH_REDIRECT_URI } from '@/components/shared';
 import { ErrorLogger } from '@/utils/error-logger';
 import brandConfig from '../../brand.config.json';
 
@@ -129,29 +129,24 @@ export class OAuthTokenExchangeService {
             // OAuth2 token exchange with PKCE requires:
             // - grant_type: 'authorization_code'
             // - code: the authorization code
-            // - redirect_uri: must match the one used in authorization request
+            // - redirect_uri: must match EXACTLY the one used in authorization request
             // - client_id: your OAuth2 client ID
             // - code_verifier: the PKCE code verifier (proves we initiated the auth flow)
 
-            const clientId = '342vx4HbkVVPtJejdGKP1';
-            if (!clientId) {
-                ErrorLogger.error('OAuth', 'CLIENT_ID environment variable is not set');
+            if (!OAUTH_CLIENT_ID) {
+                ErrorLogger.error('OAuth', 'CLIENT_ID is not configured');
                 return {
                     error: 'invalid_client',
-                    error_description: 'CLIENT_ID is not configured. Please set the CLIENT_ID environment variable.',
+                    error_description: 'CLIENT_ID is not configured.',
                 };
             }
-
-            const protocol = window.location.protocol;
-            const host = window.location.host;
-            const redirectUrl = `${protocol}//${host}/`;
 
             const requestBody = new URLSearchParams({
                 grant_type: 'authorization_code',
                 code: code,
-                client_id: clientId,
-                redirect_uri: redirectUrl,
-                code_verifier: codeVerifier, // PKCE: Include code verifier
+                client_id: OAUTH_CLIENT_ID,
+                redirect_uri: OAUTH_REDIRECT_URI,
+                code_verifier: codeVerifier,
             });
 
             const response = await fetch(tokenEndpoint, {
@@ -165,21 +160,6 @@ export class OAuthTokenExchangeService {
 
             // Parse response
             const data = await response.json() as Record<string, unknown>;
-
-        console.log('[OAuth] Token response keys:', Object.keys(data));
-        console.log('[OAuth] Full token response (redacted):', JSON.stringify(data, (key, val) => {
-            if (typeof val === 'string' && val.length > 10) return val.substring(0, 6) + '...(' + val.length + ' chars)';
-            return val;
-        }));
-        if (data.token1) {
-            console.log('[OAuth] token1:', `${String(data.token1).substring(0,4)}...(${String(data.token1).length} chars)`);
-        } else {
-            console.warn('[OAuth] token1: NOT PRESENT in response.');
-        }
-        console.log('[OAuth] acct1:', data.acct1 || 'NONE');
-        if (data.access_token) {
-            console.log('[OAuth] access_token:', `${String(data.access_token).substring(0,4)}...(${String(data.access_token).length} chars)`);
-        }
 
             // Check for errors in response
             if (data.error) {
@@ -197,22 +177,11 @@ export class OAuthTokenExchangeService {
             const derivAccountId = (data.acct1 as string) || '';
             const accessToken = (data.access_token as string) || '';
 
-            console.log('[OAuth] Has token1:', !!data.token1, 'Has acct1:', !!data.acct1, 'Has access_token:', !!data.access_token);
-
-            if (derivToken) {
-                console.log('[OAuth] SUCCESS: token1 is the short Deriv API token for WebSocket authorize');
-            } else {
-                console.error('[OAuth] WARNING: token1 NOT returned. WebSocket authorize will not work.');
-                console.error('[OAuth] The OAuth response must include token1 (Deriv API token) for WebSocket authentication.');
-            }
-
             if (derivToken || accessToken) {
                 // Clear the code verifier after successful exchange
                 clearCodeVerifier();
 
                 // Store authentication info in sessionStorage
-                // deriv_token = token1 (short Deriv API token for WebSocket)
-                // access_token = Ory access token (for REST API calls)
                 const authInfo = {
                     access_token: accessToken,
                     deriv_token: derivToken,
@@ -227,32 +196,22 @@ export class OAuthTokenExchangeService {
                 // Store as JSON string
                 sessionStorage.setItem('auth_info', JSON.stringify(authInfo));
 
-                // Also store in localStorage for bot-skeleton compatibility
-                // Use token1 (derivToken) for the bot, NOT the Ory access_token
+                // Store in localStorage for bot-skeleton compatibility
                 const botToken = derivToken || accessToken;
                 localStorage.setItem('authToken', botToken);
                 if (derivAccountId) {
                     localStorage.setItem('active_loginid', derivAccountId);
                     const isDemo = derivAccountId.startsWith('VRT') || derivAccountId.startsWith('VRTC');
                     localStorage.setItem('account_type', isDemo ? 'demo' : 'real');
-                    // Store accountsList format for bot-skeleton
                     const accountsList: Record<string, string> = {};
                     accountsList[derivAccountId] = botToken;
                     localStorage.setItem('accountsList', JSON.stringify(accountsList));
                 }
 
-                // Log success
-                if (derivToken) {
-                    ErrorLogger.info('OAuth', 'Token exchange successful', {
-                        has_token1: true,
-                        account_id: derivAccountId,
-                    });
-                } else {
-                    ErrorLogger.info('OAuth', 'Token exchange completed but token1 not present', {
-                        has_access_token: !!accessToken,
-                        account_id: derivAccountId,
-                    });
-                }
+                ErrorLogger.info('OAuth', 'Token exchange successful', {
+                    has_token1: !!derivToken,
+                    account_id: derivAccountId,
+                });
             }
 
             return data as unknown as TokenExchangeResponse;

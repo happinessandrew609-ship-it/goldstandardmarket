@@ -71,7 +71,7 @@ function handleOldOAuthCallback(): boolean {
 
     if (!token1) return false;
 
-    console.log('[Auth] Old OAuth callback detected (token1)');
+    console.log('[Auth] Old OAuth callback detected');
 
     // Store token1 as authToken for bot-skeleton
     localStorage.setItem('authToken', token1);
@@ -119,7 +119,7 @@ function handleOldOAuthCallback(): boolean {
     url.searchParams.delete('state');
     window.history.replaceState({}, '', url.toString());
 
-    console.log('[Auth] Old OAuth: token1 stored, clearing old API instance');
+    console.log('[Auth] Old OAuth: token1 stored');
     clearDerivApiInstance();
 
     return true;

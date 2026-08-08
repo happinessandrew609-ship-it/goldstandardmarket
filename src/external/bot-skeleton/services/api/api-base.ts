@@ -258,44 +258,19 @@ class APIBase {
         setIsAuthorizing(true);
 
         try {
-            // Wait for WebSocket to be open before sending authorize
-            if (this.api.connection && this.api.connection.readyState !== WebSocket.OPEN) {
-                console.log('[APIBase] Waiting for WebSocket to open (current state:', this.api.connection.readyState, ')');
-                await new Promise<void>((resolve) => {
-                    const checkOpen = () => {
-                        if (this.api?.connection?.readyState === WebSocket.OPEN) {
-                            resolve();
-                        } else {
-                            setTimeout(checkOpen, 100);
-                        }
-                    };
-                    checkOpen();
-                    // Timeout after 10 seconds
-                    setTimeout(() => resolve(), 10000);
-                });
-                console.log('[APIBase] WebSocket state after wait:', this.api.connection?.readyState);
-            }
-
             // Send authorize with token from localStorage before calling balance
-            // This is needed for the old OAuth flow where token1 is stored in localStorage
             const authToken = localStorage.getItem('authToken');
             if (authToken) {
-                const tokenPrefix = authToken.substring(0, 6);
-                const tokenLen = authToken.length;
-                console.log(`[APIBase] Sending authorize with stored token (${tokenPrefix}...${tokenLen} chars)`);
                 try {
                     const authResult = await this.api.authorize(authToken);
                     if (authResult.error) {
                         console.error('[APIBase] Authorize error:', JSON.stringify(authResult.error));
-                        console.error('[APIBase] This usually means the token is invalid or the app is not properly configured on Deriv developer portal.');
                     } else if (authResult.authorize) {
-                        console.log('[APIBase] Authorize success:', authResult.authorize.loginid);
+                        // Authorized successfully
                     }
                 } catch (authErr) {
                     console.error('[APIBase] Authorize call failed:', authErr);
                 }
-            } else {
-                console.warn('[APIBase] No authToken in localStorage - cannot authorize');
             }
 
             const { balance, error } = await this.api.balance();

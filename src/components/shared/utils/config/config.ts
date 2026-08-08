@@ -14,11 +14,17 @@ export const STAGING_DOMAINS = {
     COM: brandConfig.platform.hostname.staging.com,
 } as const;
 
-// Deriv WebSocket URLs
-const OAUTH_CLIENT_ID = '342vx4HbkVVPtJejdGKP1';
+// Deriv OAuth2 PKCE configuration
+// CLIENT_ID: registered at developers.deriv.com for this domain
+// APP_ID: numeric app ID for WebSocket connections
+// OAUTH_REDIRECT_URI: must EXACTLY match what's registered on Deriv developer portal
+export const OAUTH_CLIENT_ID = '342vx4HbkVVPtJejdGKP1';
+export const OAUTH_APP_ID = 342;
+export const OAUTH_REDIRECT_URI = 'https://goldstandardmarket.vercel.app';
+
 export const WS_SERVERS = {
-    STAGING: `wss://staging-api.derivws.com/trading/v1/options/ws/public?app_id=342`,
-    PRODUCTION: `wss://api.derivws.com/trading/v1/options/ws/public?app_id=342`,
+    STAGING: `wss://staging-api.derivws.com/trading/v1/options/ws/public?app_id=${OAUTH_APP_ID}`,
+    PRODUCTION: `wss://api.derivws.com/trading/v1/options/ws/public?app_id=${OAUTH_APP_ID}`,
 } as const;
 
 // =============================================================================
@@ -222,12 +228,6 @@ export const generateOAuthURL = async (prompt?: string) => {
     try {
         // PKCE OAuth2 flow via auth.deriv.com
         // old oauth.deriv.com is dead (301 redirects to deriv.com)
-        const clientId = '342vx4HbkVVPtJejdGKP1';
-
-        // Build redirect URL - must exactly match what's registered on Deriv developer portal
-        const protocol = window.location.protocol;
-        const host = window.location.host;
-        const redirectUrl = `${protocol}//${host}/`;
 
         // Generate PKCE code verifier (random string)
         const codeVerifier = generateCodeVerifier();
@@ -240,12 +240,12 @@ export const generateOAuthURL = async (prompt?: string) => {
         const csrfToken = generateCSRFToken();
         storeCSRFToken(csrfToken);
 
-        // Build OAuth2 PKCE URL
+        // Build OAuth2 PKCE URL using shared constants
         let oauthUrl = `https://auth.deriv.com/oauth2/auth?` +
             `scope=trade` +
             `&response_type=code` +
-            `&client_id=${encodeURIComponent(clientId)}` +
-            `&redirect_uri=${encodeURIComponent(redirectUrl)}` +
+            `&client_id=${encodeURIComponent(OAUTH_CLIENT_ID)}` +
+            `&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}` +
             `&state=${encodeURIComponent(csrfToken)}` +
             `&code_challenge=${encodeURIComponent(codeChallenge)}` +
             `&code_challenge_method=S256`;
@@ -254,7 +254,6 @@ export const generateOAuthURL = async (prompt?: string) => {
             oauthUrl += `&prompt=${encodeURIComponent(prompt)}`;
         }
 
-        console.log('[Auth] OAuth URL (PKCE):', oauthUrl.substring(0, 100) + '...');
         return oauthUrl;
     } catch (error) {
         console.error('Error generating OAuth URL:', error);

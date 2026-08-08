@@ -1,9 +1,9 @@
 {
     "brand_name": "Gold Standard Market",
-    "brand_domain": "curious-fox-b0b908.netlify.app",
+    "brand_domain": "goldstandardmarket.vercel.app",
     "brand_hostname": {
-        "staging": "curious-fox-b0b908.netlify.app",
-        "production": "curious-fox-b0b908.netlify.app"
+        "staging": "goldstandardmarket.vercel.app",
+        "production": "goldstandardmarket.vercel.app"
     },
     "domain_name": "Gold Standard Market",
     "colors": {
