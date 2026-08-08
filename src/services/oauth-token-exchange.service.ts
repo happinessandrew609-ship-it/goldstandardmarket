@@ -144,7 +144,7 @@ export class OAuthTokenExchangeService {
 
             const protocol = window.location.protocol;
             const host = window.location.host;
-            const redirectUrl = `${protocol}//${host}`;
+            const redirectUrl = `${protocol}//${host}/`;
 
             const requestBody = new URLSearchParams({
                 grant_type: 'authorization_code',
@@ -166,17 +166,20 @@ export class OAuthTokenExchangeService {
             // Parse response
             const data = await response.json() as Record<string, unknown>;
 
-            console.log('[OAuth] Token response keys:', Object.keys(data));
-            // Log token lengths and prefixes for debugging (no full tokens)
-            if (data.token1) {
-                console.log('[OAuth] token1:', `${String(data.token1).substring(0,4)}...(${String(data.token1).length} chars)`);
-            } else {
-                console.warn('[OAuth] token1: NOT PRESENT in response. This is needed for WebSocket authorize.');
-            }
-            console.log('[OAuth] acct1:', data.acct1 || 'NONE');
-            if (data.access_token) {
-                console.log('[OAuth] access_token:', `${String(data.access_token).substring(0,4)}...(${String(data.access_token).length} chars)`);
-            }
+        console.log('[OAuth] Token response keys:', Object.keys(data));
+        console.log('[OAuth] Full token response (redacted):', JSON.stringify(data, (key, val) => {
+            if (typeof val === 'string' && val.length > 10) return val.substring(0, 6) + '...(' + val.length + ' chars)';
+            return val;
+        }));
+        if (data.token1) {
+            console.log('[OAuth] token1:', `${String(data.token1).substring(0,4)}...(${String(data.token1).length} chars)`);
+        } else {
+            console.warn('[OAuth] token1: NOT PRESENT in response.');
+        }
+        console.log('[OAuth] acct1:', data.acct1 || 'NONE');
+        if (data.access_token) {
+            console.log('[OAuth] access_token:', `${String(data.access_token).substring(0,4)}...(${String(data.access_token).length} chars)`);
+        }
 
             // Check for errors in response
             if (data.error) {

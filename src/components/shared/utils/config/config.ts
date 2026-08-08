@@ -224,10 +224,10 @@ export const generateOAuthURL = async (prompt?: string) => {
         // old oauth.deriv.com is dead (301 redirects to deriv.com)
         const clientId = '342vx4HbkVVPtJejdGKP1';
 
-        // Build redirect URL
+        // Build redirect URL - must exactly match what's registered on Deriv developer portal
         const protocol = window.location.protocol;
         const host = window.location.host;
-        const redirectUrl = `${protocol}//${host}`;
+        const redirectUrl = `${protocol}//${host}/`;
 
         // Generate PKCE code verifier (random string)
         const codeVerifier = generateCodeVerifier();
