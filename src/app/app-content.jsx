@@ -125,6 +125,8 @@ const AppContent = observer(() => {
 
             active_symbols.retrieveActiveSymbols(true).then(() => {
                 setIsLoading(false);
+            }).catch(() => {
+                setIsLoading(false);
             });
         };
 
@@ -139,17 +141,28 @@ const AppContent = observer(() => {
                     retrieveActiveSymbols();
                 }
             }, 1000);
+
+            // Safety timeout to dismiss loader even if network/symbols take long
+            setTimeout(() => {
+                clearInterval(intervalId);
+                setIsLoading(false);
+            }, 3000);
         }
     };
 
     React.useEffect(() => {
+        // Fallback safety: guarantee the operational UI loads within 3.5s
+        const safetyTimer = setTimeout(() => {
+            setIsLoading(false);
+        }, 3500);
+
         if (is_api_initialized) {
             init();
-            setIsLoading(true);
             if (!client.is_logged_in) {
                 changeActiveSymbolLoadingState();
             }
         }
+        return () => clearTimeout(safetyTimer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [is_api_initialized]);
 
@@ -163,7 +176,7 @@ const AppContent = observer(() => {
     if (common?.error) return null;
 
     return is_loading ? (
-        <ChunkLoader message={localize('Initializing Deriv Bot account...')} />
+        <ChunkLoader message={localize('Initializing Gold Standard Market...')} />
     ) : (
         <AuthLoadingWrapper>
             <ThemeProvider theme={is_dark_mode_on ? 'dark' : 'light'}>
