@@ -151,6 +151,10 @@ const AppContent = observer(() => {
     };
 
     React.useEffect(() => {
+        init();
+    }, []);
+
+    React.useEffect(() => {
         // Fallback safety: guarantee the operational UI loads within 3.5s
         const safetyTimer = setTimeout(() => {
             setIsLoading(false);
