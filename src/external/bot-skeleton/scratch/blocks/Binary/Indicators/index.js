@@ -1,3 +1,5 @@
+import './atr_statement';
+import './atra_statement';
 import './bb_statement';
 import './bba_statement';
 import './ema_statement';

@@ -62,6 +62,8 @@ window.Blockly.Blocks.input_list = {
         }
     },
     allowed_parents: [
+        'atr_statement',
+        'atra_statement',
         'bb_statement',
         'bba_statement',
         'ema_statement',

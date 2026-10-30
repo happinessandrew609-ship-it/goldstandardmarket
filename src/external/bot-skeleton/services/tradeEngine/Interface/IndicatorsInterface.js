@@ -1,4 +1,6 @@
 import {
+    averageTrueRange as atr,
+    averageTrueRangeArray as atra,
     bollingerBands as bb,
     bollingerBandsArray as bba,
     exponentialMovingAverage as ema,
@@ -17,6 +19,8 @@ const decorate = (f, input, tradeEngine, config, ...args) => {
 
 const getIndicatorsInterface = tradeEngine => {
     return {
+        atr: (input, periods) => decorate(atr, input, tradeEngine, { periods }),
+        atra: (input, periods) => decorate(atra, input, tradeEngine, { periods }),
         sma: (input, periods) => decorate(sma, input, tradeEngine, { periods }),
         smaa: (input, periods) => decorate(smaa, input, tradeEngine, { periods }),
         ema: (input, periods) => decorate(ema, input, tradeEngine, { periods }),
