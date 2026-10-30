@@ -163,47 +163,6 @@ const AppHeader = observer(() => {
                     );
                 }
             }
-            // Show login button only when fully settled (not during OAuth flow)
-            else if (
-                position === 'right' &&
-                !isOAuthPending &&
-                ((!is_account_regenerating && !isAuthorizing && !activeLoginid) || authTimeout)
-            ) {
-                return (
-                    <div className='auth-actions'>
-                        <Button tertiary onClick={handleLogin}>
-                            <Localize i18n_default_text='Log in' />
-                        </Button>
-                        <Button primary_light onClick={handleSignup}>
-                            <Localize i18n_default_text='Sign up' />
-                        </Button>
-                    </div>
-                );
-            }
-            // Default: Show spinner during loading states or when authorizing
-            else if (position === 'right') {
-                return (
-                    <div className='auth-actions auth-actions--loading'>
-                        <svg
-                            className='auth-actions__spinner'
-                            viewBox='0 0 24 24'
-                            fill='none'
-                            xmlns='http://www.w3.org/2000/svg'
-                        >
-                            <circle
-                                cx='12'
-                                cy='12'
-                                r='10'
-                                stroke='currentColor'
-                                strokeWidth='2.5'
-                                strokeLinecap='round'
-                                strokeDasharray='31.416'
-                                strokeDashoffset='10'
-                            />
-                        </svg>
-                    </div>
-                );
-            }
 
             return null;
         },

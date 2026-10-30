@@ -188,7 +188,7 @@ export default class ClientStore {
     }
 
     isBotAllowed = () => {
-        return this.is_virtual ? this.is_eu_or_multipliers_only : !this.is_options_blocked;
+        return true;
     };
 
     setLoginId = (loginid: string) => {
