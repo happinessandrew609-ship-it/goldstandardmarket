@@ -66,3 +66,4 @@ window.Blockly.JavaScript.javascriptGenerator.forBlock.atra_statement = block =>
 
     return code;
 };
+

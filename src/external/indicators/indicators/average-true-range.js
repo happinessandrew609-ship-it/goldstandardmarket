@@ -57,3 +57,4 @@ export const averageTrueRangeArray = (data, config) => {
         return +averageTrueRange(slice, config).toFixed(pipSize);
     });
 };
+

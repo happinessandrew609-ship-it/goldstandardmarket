@@ -75,6 +75,7 @@ export default defineConfig({
     },
     dev: {
         hmr: true,
+        lazyCompilation: false,
     },
     performance: {
         // Configure Rsbuild's native bundle analyzer
