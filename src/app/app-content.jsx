@@ -152,21 +152,19 @@ const AppContent = observer(() => {
 
     React.useEffect(() => {
         init();
+        const safetyTimer = setTimeout(() => {
+            setIsLoading(false);
+        }, 2000);
+        return () => clearTimeout(safetyTimer);
     }, []);
 
     React.useEffect(() => {
-        // Fallback safety: guarantee the operational UI loads within 3.5s
-        const safetyTimer = setTimeout(() => {
-            setIsLoading(false);
-        }, 3500);
-
         if (is_api_initialized) {
             init();
             if (!client.is_logged_in) {
                 changeActiveSymbolLoadingState();
             }
         }
-        return () => clearTimeout(safetyTimer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [is_api_initialized]);
 
