@@ -274,3 +274,4 @@ export const DashboardV2 = observer(({ handleTabChange }: TDashboardV2Props) => 
 });
 
 export default DashboardV2;
+

@@ -1,4 +1,5 @@
 import React from 'react';
+import { TAB_IDS } from '@/constants/bot-contents';
 
 export type TNavItem = {
     index: number;
@@ -19,6 +20,7 @@ export const MainNav: React.FC<TMainNavProps> = ({ items, activeIndex, onTabClic
                 {items.map(item => (
                     <button
                         key={item.index}
+                        id={TAB_IDS[item.index]}
                         className={`main-nav__item${activeIndex === item.index ? ' main-nav__item--active' : ''}`}
                         onClick={() => onTabClick(item.index)}
                     >
@@ -32,3 +34,4 @@ export const MainNav: React.FC<TMainNavProps> = ({ items, activeIndex, onTabClic
 };
 
 export default MainNav;
+

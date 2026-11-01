@@ -44,6 +44,10 @@ import DashboardV2 from '../dashboard/dashboard-v2';
 import CopyTrading from '../copy-trading';
 import DCircles from '../dcircles';
 import FreeBots from '../free-bots';
+import PegasusAi from '../pegasus-ai';
+import { PegasusActivatedModal } from '../pegasus-ai/pegasus-activated-modal';
+import { PegasusVictoryModal } from '../pegasus-ai/pegasus-victory-modal';
+import { AiLiveHud } from '../pegasus-ai/ai-live-hud';
 import MainNav, { TNavItem } from './main-nav';
 import RunStrategy from '../dashboard/run-strategy';
 import './main.scss';
@@ -82,12 +86,17 @@ const AppWrapper = observer(() => {
     const { clear } = summary_card;
     const { DASHBOARD, BOT_BUILDER } = DBOT_TABS;
     const init_render = React.useRef(true);
-    const hash = ['dashboard', 'bot_builder', 'chart', 'tutorial', 'copycat', 'dcircles', 'free_bots'];
+    const hash = ['dashboard', 'bot_builder', 'chart', 'tutorial', 'copycat', 'dcircles', 'free_bots', 'pegasus_ai'];
     const { isDesktop } = useDevice();
     const location = useLocation();
     const navigate = useNavigate();
     const [left_tab_shadow, setLeftTabShadow] = useState<boolean>(false);
     const [right_tab_shadow, setRightTabShadow] = useState<boolean>(false);
+
+    // Pegasus AI Modal States
+    const [is_pegasus_activated_open, setIsPegasusActivatedOpen] = useState<boolean>(false);
+    const [is_victory_modal_open, setIsVictoryModalOpen] = useState<boolean>(false);
+    const [pegasus_victory_amount, setPegasusVictoryAmount] = useState<string | number>('556.32');
 
     // Trade type modal state
     const [tradeTypeModalState, setTradeTypeModalState] = useState(getModalState());
@@ -142,6 +151,43 @@ const AppWrapper = observer(() => {
     React.useEffect(() => {
         resetUrlParamProcessing();
     }, [location.search]);
+
+    // Set up Pegasus AI event listeners & profit target monitoring
+    React.useEffect(() => {
+        const handleProfitHit = (e: any) => {
+            const msg = e?.detail?.message || '';
+            const match = msg.match(/hit a profit of\s+([0-9.,]+)/i);
+            const amount = match ? match[1] : (e?.detail?.profit || '556.32');
+            setPegasusVictoryAmount(amount);
+            setIsVictoryModalOpen(true);
+            if (run_panel.is_running) {
+                run_panel.stopBot();
+            }
+        };
+
+        const handlePegasusHandoff = () => {
+            setIsPegasusActivatedOpen(true);
+        };
+
+        window.addEventListener('gsm:pegasus-profit-target-hit', handleProfitHit);
+        window.addEventListener('gsm:pegasus-activated-modal-open', handlePegasusHandoff);
+
+        return () => {
+            window.removeEventListener('gsm:pegasus-profit-target-hit', handleProfitHit);
+            window.removeEventListener('gsm:pegasus-activated-modal-open', handlePegasusHandoff);
+        };
+    }, [run_panel]);
+
+    React.useEffect(() => {
+        const isPegasusActive = localStorage.getItem('pegasus_is_active') === 'true';
+        const targetTp = parseFloat(localStorage.getItem('pegasus_active_take_profit') || localStorage.getItem('pegasus_input_tp') || '0');
+        if (isPegasusActive && run_panel.is_running && targetTp > 0 && summary_card.profit >= targetTp) {
+            run_panel.stopBot();
+            setPegasusVictoryAmount(summary_card.profit.toFixed(2));
+            setIsVictoryModalOpen(true);
+            localStorage.removeItem('pegasus_is_active');
+        }
+    }, [summary_card.profit, run_panel.is_running, run_panel]);
 
     React.useEffect(() => {
         const el_dashboard = document.getElementById('id-dbot-dashboard');
@@ -438,6 +484,19 @@ const AppWrapper = observer(() => {
                 </svg>
             ),
         },
+        {
+            index: DBOT_TABS.PEGASUS_AI,
+            label: localize('Pegasus AI'),
+            icon: (
+                <svg xmlns='http://www.w3.org/2000/svg' width='20px' height='20px' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.8' strokeLinecap='round' strokeLinejoin='round'>
+                    <rect x='3' y='11' width='18' height='10' rx='2'></rect>
+                    <circle cx='12' cy='5' r='2'></circle>
+                    <path d='M12 7v4'></path>
+                    <line x1='8' y1='16' x2='8.01' y2='16'></line>
+                    <line x1='16' y1='16' x2='16.01' y2='16'></line>
+                </svg>
+            ),
+        },
     ];
     return (
         <React.Fragment>
@@ -486,6 +545,8 @@ const AppWrapper = observer(() => {
                                     return <DCircles />;
                                 case DBOT_TABS.FREE_BOTS:
                                     return <FreeBots handleTabChange={handleTabChange} />;
+                                case DBOT_TABS.PEGASUS_AI:
+                                    return <PegasusAi handleTabChange={handleTabChange} />;
                                 default:
                                     return <DashboardV2 handleTabChange={handleTabChange} />;
                             }
@@ -535,6 +596,24 @@ const AppWrapper = observer(() => {
                     />
                 );
             })()}
+
+            {/* Pegasus AI Live HUD & Modals */}
+            <AiLiveHud onClick={() => handleTabChange(DBOT_TABS.BOT_BUILDER)} />
+            <PegasusActivatedModal
+                isOpen={is_pegasus_activated_open}
+                onClose={() => setIsPegasusActivatedOpen(false)}
+                onActivate={() => {
+                    setIsPegasusActivatedOpen(false);
+                    setTimeout(() => {
+                        run_panel.onRunButtonClick();
+                    }, 350);
+                }}
+            />
+            <PegasusVictoryModal
+                isOpen={is_victory_modal_open}
+                profitAmount={pegasus_victory_amount}
+                onContinue={() => setIsVictoryModalOpen(false)}
+            />
         </React.Fragment>
     );
 });

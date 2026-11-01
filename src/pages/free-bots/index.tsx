@@ -184,3 +184,4 @@ export const FreeBots = observer(({ handleTabChange }: TFreeBotsProps) => {
 });
 
 export default FreeBots;
+
