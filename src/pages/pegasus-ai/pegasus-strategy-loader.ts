@@ -3,24 +3,24 @@
  */
 
 export interface IPegasusSignal {
-    id: string;
-    rank: number;
-    marketName: string;
-    symbol: string;
-    confidence: number;
-    tradeType: 'DIGITOVER' | 'DIGITUNDER';
-    barrier: number;
-    recoveryRule: string;
-    description: string;
+  id: string;
+  rank: number;
+  marketName: string;
+  symbol: string;
+  confidence: number;
+  tradeType: 'DIGITOVER' | 'DIGITUNDER';
+  barrier: number;
+  recoveryRule: string;
+  description: string;
 }
 
 export const generatePegasusXml = (
-    symbol: string,
-    stake: number,
-    takeProfit: number,
-    barrier: number = 1
+  symbol: string,
+  stake: number,
+  takeProfit: number,
+  barrier: number = 1
 ): string => {
-    return `<xml xmlns="https://developers.google.com/blockly/xml" is_dbot="true" collection="false" data-strategy-origin="pegasus" data-strategy-name="Pegasus AI Engine">
+  return `<xml xmlns="https://developers.google.com/blockly/xml" is_dbot="true" collection="false" data-strategy-origin="pegasus" data-strategy-name="Pegasus AI Engine">
   <variables>
     <variable id="pegasus_stake">pegasus initial stake</variable>
     <variable id="pegasus_tp">pegasus take profit</variable>
@@ -247,36 +247,36 @@ export const generatePegasusXml = (
 };
 
 export const loadPegasusStrategyToWorkspace = (
-    symbol: string,
-    stake: number,
-    takeProfit: number,
-    barrier: number = 1
+  symbol: string,
+  stake: number,
+  takeProfit: number,
+  barrier: number = 1
 ): boolean => {
-    try {
-        const xmlString = generatePegasusXml(symbol, stake, takeProfit, barrier);
-        
-        // Persist parameters in localStorage for AI HUD and target monitoring
-        localStorage.setItem('pegasus_active_stake', String(stake));
-        localStorage.setItem('pegasus_active_take_profit', String(takeProfit));
-        localStorage.setItem('pegasus_active_symbol', symbol);
-        localStorage.setItem('pegasus_is_active', 'true');
+  try {
+    const xmlString = generatePegasusXml(symbol, stake, takeProfit, barrier);
 
-        const workspace = (window as any).Blockly?.derivWorkspace;
-        if (workspace && (window as any).Blockly?.Xml) {
-            workspace.clear();
-            const dom = (window as any).Blockly.Xml.textToDom(xmlString);
-            (window as any).Blockly.Xml.domToWorkspace(dom, workspace);
-            workspace.strategy_to_load = xmlString;
-            return true;
-        }
+    // Persist parameters in localStorage for AI HUD and target monitoring
+    localStorage.setItem('pegasus_active_stake', String(stake));
+    localStorage.setItem('pegasus_active_take_profit', String(takeProfit));
+    localStorage.setItem('pegasus_active_symbol', symbol);
+    localStorage.setItem('pegasus_is_active', 'true');
 
-        console.warn('Blockly workspace not ready, cached in strategy_to_load');
-        if ((window as any).Blockly) {
-            (window as any).Blockly.strategy_to_load = xmlString;
-        }
-        return true;
-    } catch (err) {
-        console.error('Failed to load Pegasus strategy into workspace:', err);
-        return false;
+    const workspace = (window as any).Blockly?.derivWorkspace;
+    if (workspace && (window as any).Blockly?.Xml) {
+      workspace.clear();
+      const dom = (window as any).Blockly.Xml.textToDom(xmlString);
+      (window as any).Blockly.Xml.domToWorkspace(dom, workspace);
+      workspace.strategy_to_load = xmlString;
+      return true;
     }
+
+    console.warn('Blockly workspace not ready, cached in strategy_to_load');
+    if ((window as any).Blockly) {
+      (window as any).Blockly.strategy_to_load = xmlString;
+    }
+    return true;
+  } catch (err) {
+    console.error('Failed to load Pegasus strategy into workspace:', err);
+    return false;
+  }
 };

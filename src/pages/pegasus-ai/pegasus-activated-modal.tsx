@@ -108,3 +108,4 @@ export const PegasusActivatedModal: React.FC<IPegasusActivatedModalProps> = ({
         </div>
     );
 };
+

@@ -47,7 +47,7 @@ const DEFAULT_SIGNALS: IPegasusSignal[] = [
 
 export const PegasusAi: React.FC<IPegasusAiProps> = observer(({ handleTabChange }) => {
     const { run_panel } = useStore();
-    
+
     // User configuration inputs
     const [stake, setStake] = useState<number>(() => {
         const saved = localStorage.getItem('pegasus_input_stake');
@@ -165,9 +165,8 @@ export const PegasusAi: React.FC<IPegasusAiProps> = observer(({ handleTabChange 
 
                         {/* Sonar sweep line */}
                         <div
-                            className={`pegasus-view__radar-sweep ${
-                                !isScanning && signals.length === 0 ? 'pegasus-view__radar-sweep--paused' : ''
-                            }`}
+                            className={`pegasus-view__radar-sweep ${!isScanning && signals.length === 0 ? 'pegasus-view__radar-sweep--paused' : ''
+                                }`}
                         />
 
                         {/* Central Button */}

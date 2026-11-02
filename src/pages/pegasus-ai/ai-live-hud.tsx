@@ -25,3 +25,4 @@ export const AiLiveHud: React.FC<IAiLiveHudProps> = observer(({ onClick }) => {
         </div>
     );
 });
+
