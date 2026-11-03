@@ -60,18 +60,35 @@ const router = createBrowserRouter(
 );
 
 /**
- * Handles old Deriv OAuth callback (token1/acct1 in URL params)
+ * Helper to extract OAuth parameters from either URL search query or URL hash fragment
+ */
+function getOAuthParams(): URLSearchParams {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.has('token1') || searchParams.has('code') || searchParams.has('error')) {
+        return searchParams;
+    }
+    const hash = window.location.hash;
+    if (hash && (hash.includes('token1=') || hash.includes('code=') || hash.includes('error='))) {
+        // Strip #, #?, or #/ prefix
+        const clean = hash.replace(/^#[/?]*/, '');
+        return new URLSearchParams(clean);
+    }
+    return searchParams;
+}
+
+/**
+ * Handles old Deriv OAuth callback (token1/acct1 in URL params or hash)
  * Returns true if old flow was handled
  */
 function handleOldOAuthCallback(): boolean {
-    const urlParams = new URLSearchParams(window.location.search);
-    const token1 = urlParams.get('token1');
-    const acct1 = urlParams.get('acct1');
-    const cur1 = urlParams.get('cur1');
+    const params = getOAuthParams();
+    const token1 = params.get('token1');
+    const acct1 = params.get('acct1');
+    const cur1 = params.get('cur1');
 
     if (!token1) return false;
 
-    console.log('[Auth] Old OAuth callback detected');
+    console.log('[Auth] Deriv OAuth token callback detected');
 
     // Store token1 as authToken for bot-skeleton
     localStorage.setItem('authToken', token1);
@@ -108,7 +125,7 @@ function handleOldOAuthCallback(): boolean {
         localStorage.setItem('client_account_details', JSON.stringify(clientAccounts));
     }
 
-    // Clean URL params
+    // Clean URL params and hash
     const url = new URL(window.location.href);
     url.searchParams.delete('token1');
     url.searchParams.delete('acct1');
@@ -117,37 +134,59 @@ function handleOldOAuthCallback(): boolean {
     url.searchParams.delete('cur1');
     url.searchParams.delete('cur2');
     url.searchParams.delete('state');
+    if (url.hash && (url.hash.includes('token1=') || url.hash.includes('acct1='))) {
+        url.hash = '';
+    }
     window.history.replaceState({}, '', url.toString());
 
-    console.log('[Auth] Old OAuth: token1 stored');
+    console.log('[Auth] Old OAuth: token1 stored, authorizing api_base');
     clearDerivApiInstance();
+
+    // Trigger immediate WebSocket authorization
+    import('@/external/bot-skeleton/services/api/api-base').then(({ api_base }) => {
+        api_base.authorizeWithToken(token1).catch(err => {
+            console.error('[Auth] Immediate authorization error:', err);
+        });
+    });
 
     return true;
 }
 
 /**
- * Handles PKCE OAuth2 callback (code + state in URL params)
+ * Handles PKCE OAuth2 callback (code + state in URL params or hash)
  * Returns a promise that resolves to true if PKCE flow was handled
  */
 async function handlePKCECallback(): Promise<boolean> {
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    const state = urlParams.get('state');
-    const error = urlParams.get('error');
-    const errorDescription = urlParams.get('error_description');
+    const params = getOAuthParams();
+    const code = params.get('code');
+    const state = params.get('state');
+    const error = params.get('error');
+    const errorDescription = params.get('error_description');
 
     // Not a PKCE callback
     if (!code && !error && !state) return false;
 
-    // Handle error response
+    // Handle error response from Deriv OAuth server
     if (error) {
+        const errorMsg = errorDescription || error;
         console.error('[Auth] PKCE OAuth error:', error, errorDescription);
+        sessionStorage.setItem(
+            'gsm_auth_error',
+            `Deriv OAuth error (${error}): ${errorMsg}. Please use your Deriv API Personal Access Token to log in directly.`
+        );
+
         // Clean URL and return
         const url = new URL(window.location.href);
         url.searchParams.delete('error');
         url.searchParams.delete('error_description');
         url.searchParams.delete('state');
+        if (url.hash && (url.hash.includes('error=') || url.hash.includes('state='))) {
+            url.hash = '';
+        }
         window.history.replaceState({}, '', url.toString());
+
+        // Notify UI to open login modal and present the message
+        window.dispatchEvent(new CustomEvent('gsm:open-login', { detail: { error: errorMsg } }));
         return true;
     }
 
@@ -178,6 +217,11 @@ async function handlePKCECallback(): Promise<boolean> {
 
         if (result.error) {
             console.error('[Auth] Token exchange failed:', result.error, result.error_description);
+            sessionStorage.setItem(
+                'gsm_auth_error',
+                `Token exchange failed: ${result.error_description || result.error}. Please use your API Token to log in.`
+            );
+            window.dispatchEvent(new CustomEvent('gsm:open-login', { detail: { error: result.error_description } }));
             return true;
         }
 
@@ -188,10 +232,22 @@ async function handlePKCECallback(): Promise<boolean> {
         url.searchParams.delete('code');
         url.searchParams.delete('state');
         url.searchParams.delete('scope');
+        if (url.hash && (url.hash.includes('code=') || url.hash.includes('state='))) {
+            url.hash = '';
+        }
         window.history.replaceState({}, '', url.toString());
 
         // Clear old API instance to force reconnection with new token
         clearDerivApiInstance();
+
+        const storedToken = localStorage.getItem('authToken');
+        if (storedToken) {
+            import('@/external/bot-skeleton/services/api/api-base').then(({ api_base }) => {
+                api_base.authorizeWithToken(storedToken).catch(err => {
+                    console.error('[Auth] Authorization after PKCE failed:', err);
+                });
+            });
+        }
 
         return true;
     } catch (err) {
@@ -210,9 +266,9 @@ async function handlePKCECallback(): Promise<boolean> {
  */
 function App() {
     // Check for any OAuth callback params (old flow or PKCE)
-    const urlParams = new URLSearchParams(window.location.search);
-    const hasOldOAuthParams = urlParams.has('token1');
-    const hasPKCEParams = urlParams.has('code') || urlParams.has('error');
+    const oauthParams = getOAuthParams();
+    const hasOldOAuthParams = oauthParams.has('token1');
+    const hasPKCEParams = oauthParams.has('code') || oauthParams.has('error');
     const hasOAuthCallback = hasOldOAuthParams || hasPKCEParams;
     const [authReady, setAuthReady] = useState(!hasOAuthCallback);
 
@@ -222,7 +278,7 @@ function App() {
     // Process OAuth callback on mount
     React.useEffect(() => {
         if (hasOldOAuthParams) {
-            const handled = handleOldOAuthCallback();
+            handleOldOAuthCallback();
             setAuthReady(true);
         } else if (hasPKCEParams) {
             handlePKCECallback().then(() => {

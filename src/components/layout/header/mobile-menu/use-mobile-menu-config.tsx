@@ -58,12 +58,8 @@ const useMobileMenuConfig = (
                     onClick: () => {
                         if (onLogin) {
                             onLogin();
-                        } else {
-                            import('@/components/shared').then(({ generateOAuthURL }) =>
-                                generateOAuthURL().then(url => {
-                                    if (url) window.location.replace(url);
-                                })
-                            );
+                        } else if (typeof window !== 'undefined') {
+                            window.dispatchEvent(new CustomEvent('gsm:open-login'));
                         }
                     },
                 },
@@ -71,10 +67,8 @@ const useMobileMenuConfig = (
                     as: 'button',
                     label: localize('Sign up'),
                     LeftComponent: LegacyLogout1pxIcon,
-                    onClick: async () => {
-                        const { generateOAuthURL } = await import('@/components/shared');
-                        const url = await generateOAuthURL('registration');
-                        if (url) window.location.replace(url);
+                    onClick: () => {
+                        window.open('https://deriv.com/signup/', '_blank');
                     },
                     removeBorderBottom: true,
                 },

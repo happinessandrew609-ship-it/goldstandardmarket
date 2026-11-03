@@ -1,4 +1,4 @@
-import { clearCodeVerifier, getCodeVerifier, isProduction, OAUTH_CLIENT_ID, OAUTH_REDIRECT_URI } from '@/components/shared';
+import { clearCodeVerifier, getCodeVerifier, getOAuthClientId, getOAuthRedirectURI, isProduction, OAUTH_CLIENT_ID, OAUTH_REDIRECT_URI } from '@/components/shared';
 import { ErrorLogger } from '@/utils/error-logger';
 import brandConfig from '../../brand.config.json';
 
@@ -133,7 +133,10 @@ export class OAuthTokenExchangeService {
             // - client_id: your OAuth2 client ID
             // - code_verifier: the PKCE code verifier (proves we initiated the auth flow)
 
-            if (!OAUTH_CLIENT_ID) {
+            const clientId = sessionStorage.getItem('oauth_client_id') || getOAuthClientId();
+            const redirectUri = sessionStorage.getItem('oauth_redirect_uri') || getOAuthRedirectURI();
+
+            if (!clientId) {
                 ErrorLogger.error('OAuth', 'CLIENT_ID is not configured');
                 return {
                     error: 'invalid_client',
@@ -144,8 +147,8 @@ export class OAuthTokenExchangeService {
             const requestBody = new URLSearchParams({
                 grant_type: 'authorization_code',
                 code: code,
-                client_id: OAUTH_CLIENT_ID,
-                redirect_uri: OAUTH_REDIRECT_URI,
+                client_id: clientId,
+                redirect_uri: redirectUri,
                 code_verifier: codeVerifier,
             });
 
@@ -178,8 +181,10 @@ export class OAuthTokenExchangeService {
             const accessToken = (data.access_token as string) || '';
 
             if (derivToken || accessToken) {
-                // Clear the code verifier after successful exchange
+                // Clear code verifier and stored redirect parameters
                 clearCodeVerifier();
+                sessionStorage.removeItem('oauth_redirect_uri');
+                sessionStorage.removeItem('oauth_client_id');
 
                 // Store authentication info in sessionStorage
                 const authInfo = {

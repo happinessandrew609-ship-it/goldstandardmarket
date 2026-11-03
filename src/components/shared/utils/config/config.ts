@@ -22,6 +22,75 @@ export const OAUTH_CLIENT_ID = '342vx4HbkVVPtJejdGKP1';
 export const OAUTH_APP_ID = 342;
 export const OAUTH_REDIRECT_URI = 'https://goldstandardmarket.vercel.app';
 
+/**
+ * Returns active OAuth Client ID with runtime localStorage and env override support
+ */
+export const getOAuthClientId = (): string => {
+    const custom = localStorage.getItem('deriv_oauth_client_id');
+    if (custom && custom.trim().length > 0) return custom.trim();
+    if (typeof process !== 'undefined' && process.env?.VITE_DERIV_OAUTH_CLIENT_ID) {
+        return process.env.VITE_DERIV_OAUTH_CLIENT_ID;
+    }
+    return OAUTH_CLIENT_ID;
+};
+
+/**
+ * Returns active numeric App ID with runtime localStorage and env override support
+ */
+export const getOAuthAppId = (): number => {
+    const custom = localStorage.getItem('deriv_app_id');
+    if (custom && !isNaN(Number(custom))) return Number(custom);
+    if (typeof process !== 'undefined' && process.env?.VITE_DERIV_APP_ID && !isNaN(Number(process.env.VITE_DERIV_APP_ID))) {
+        return Number(process.env.VITE_DERIV_APP_ID);
+    }
+    return OAUTH_APP_ID;
+};
+
+/**
+ * Returns active Redirect URI matching current host/origin
+ */
+export const getOAuthRedirectURI = (): string => {
+    if (isLocal()) {
+        return window.location.origin;
+    }
+    const custom = localStorage.getItem('deriv_redirect_uri');
+    if (custom && custom.trim().length > 0) {
+        return custom.trim();
+    }
+    // In production/staging, default to exact canonical origin
+    if (typeof window !== 'undefined' && window.location?.origin && window.location.origin.includes('goldstandardmarket')) {
+        return window.location.origin;
+    }
+    return OAUTH_REDIRECT_URI;
+};
+
+/**
+ * Configures custom Deriv App ID / Client ID in local storage
+ */
+export const setCustomOAuthCredentials = (clientId?: string, appId?: number | string, redirectUri?: string) => {
+    if (clientId !== undefined) {
+        if (clientId) localStorage.setItem('deriv_oauth_client_id', clientId.trim());
+        else localStorage.removeItem('deriv_oauth_client_id');
+    }
+    if (appId !== undefined) {
+        if (appId) localStorage.setItem('deriv_app_id', String(appId).trim());
+        else localStorage.removeItem('deriv_app_id');
+    }
+    if (redirectUri !== undefined) {
+        if (redirectUri) localStorage.setItem('deriv_redirect_uri', redirectUri.trim());
+        else localStorage.removeItem('deriv_redirect_uri');
+    }
+};
+
+/**
+ * Resets OAuth credentials to official defaults
+ */
+export const resetOAuthCredentials = () => {
+    localStorage.removeItem('deriv_oauth_client_id');
+    localStorage.removeItem('deriv_app_id');
+    localStorage.removeItem('deriv_redirect_uri');
+};
+
 export const WS_SERVERS = {
     STAGING: `wss://ws.derivws.com/websockets/v3?app_id=${OAUTH_APP_ID}`,
     PRODUCTION: `wss://ws.derivws.com/websockets/v3?app_id=${OAUTH_APP_ID}`,
@@ -227,7 +296,8 @@ export const clearCSRFToken = (): void => {
 export const generateOAuthURL = async (prompt?: string) => {
     try {
         // PKCE OAuth2 flow via auth.deriv.com
-        // old oauth.deriv.com is dead (301 redirects to deriv.com)
+        const clientId = getOAuthClientId();
+        const redirectUri = getOAuthRedirectURI();
 
         // Generate PKCE code verifier (random string)
         const codeVerifier = generateCodeVerifier();
@@ -240,12 +310,15 @@ export const generateOAuthURL = async (prompt?: string) => {
         const csrfToken = generateCSRFToken();
         storeCSRFToken(csrfToken);
 
+        // Persist active redirect URI and client ID for PKCE exchange
+        sessionStorage.setItem('oauth_redirect_uri', redirectUri);
+        sessionStorage.setItem('oauth_client_id', clientId);
+
         // Build OAuth2 PKCE URL using shared constants
-        const redirectUri = isLocal() ? window.location.origin : OAUTH_REDIRECT_URI;
         let oauthUrl = `https://auth.deriv.com/oauth2/auth?` +
             `scope=trade` +
             `&response_type=code` +
-            `&client_id=${encodeURIComponent(OAUTH_CLIENT_ID)}` +
+            `&client_id=${encodeURIComponent(clientId)}` +
             `&redirect_uri=${encodeURIComponent(redirectUri)}` +
             `&state=${encodeURIComponent(csrfToken)}` +
             `&code_challenge=${encodeURIComponent(codeChallenge)}` +

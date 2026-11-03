@@ -3,7 +3,7 @@ import classNames from 'classnames';
 import { observer } from 'mobx-react-lite';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ChunkLoader from '@/components/loader/chunk-loader';
-import { generateOAuthURL } from '@/components/shared';
+import { openLoginModal } from '@/components/layout/header/login-modal';
 import DesktopWrapper from '@/components/shared_ui/desktop-wrapper';
 import Dialog from '@/components/shared_ui/dialog';
 import MobileWrapper from '@/components/shared_ui/mobile-wrapper';
@@ -433,13 +433,8 @@ const AppWrapper = observer(() => {
     );
 
     // [AI]
-    const handleLoginGeneration = async () => {
-        const oauthUrl = await generateOAuthURL();
-        if (oauthUrl) {
-            window.location.replace(oauthUrl);
-        } else {
-            console.error('Failed to generate OAuth URL');
-        }
+    const handleLoginGeneration = () => {
+        openLoginModal();
     };
     // [/AI]
 

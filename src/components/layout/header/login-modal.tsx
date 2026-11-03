@@ -1,6 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { api_base } from '@/external/bot-skeleton/services/api/api-base';
-import { generateOAuthURL } from '@/components/shared';
+import {
+    generateOAuthURL,
+    getOAuthClientId,
+    getOAuthRedirectURI,
+    setCustomOAuthCredentials,
+    resetOAuthCredentials,
+} from '@/components/shared';
 import './login-modal.scss';
 
 export interface LoginModalProps {
@@ -11,7 +17,19 @@ export interface LoginModalProps {
 
 export const GSM_SAVED_TOKEN = 'pat_6c4cdc1d5e24c016ac2f202d21e5c61c7305b4d2979f0f61315ac27834ebabf3';
 
-export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSuccess }) => {
+/**
+ * Global helper to open login modal from anywhere in the application
+ */
+export const openLoginModal = (options?: { error?: string; tab?: 'token' | 'oauth' }) => {
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('gsm:open-login', { detail: options }));
+    }
+};
+
+export const LoginModal: React.FC<LoginModalProps> = ({ isOpen: controlledIsOpen, onClose, onSuccess }) => {
+    const [isOpenInternal, setIsOpenInternal] = useState<boolean>(false);
+    const isOpen = controlledIsOpen || isOpenInternal;
+
     const [activeTab, setActiveTab] = useState<'token' | 'oauth'>('token');
     const [token, setToken] = useState<string>('');
     const [showToken, setShowToken] = useState<boolean>(false);
@@ -20,20 +38,57 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [showHelpGuide, setShowHelpGuide] = useState<boolean>(false);
 
+    // Advanced OAuth Customization state
+    const [showAdvancedOAuth, setShowAdvancedOAuth] = useState<boolean>(false);
+    const [customClientId, setCustomClientId] = useState<string>('');
+    const [customRedirectUri, setCustomRedirectUri] = useState<string>('');
+
+    // Listen to global open event
+    useEffect(() => {
+        const handleOpenEvent = (e: Event) => {
+            const customEvent = e as CustomEvent<{ error?: string; tab?: 'token' | 'oauth' }>;
+            setIsOpenInternal(true);
+            if (customEvent.detail?.tab) {
+                setActiveTab(customEvent.detail.tab);
+            }
+            if (customEvent.detail?.error) {
+                setErrorMessage(customEvent.detail.error);
+            }
+        };
+
+        window.addEventListener('gsm:open-login', handleOpenEvent);
+        return () => window.removeEventListener('gsm:open-login', handleOpenEvent);
+    }, []);
+
     useEffect(() => {
         if (isOpen) {
-            // Check if there is an existing token in localStorage or use default
+            // Check for existing token or stored error
             const existingToken = localStorage.getItem('authToken');
             if (existingToken) {
                 setToken(existingToken);
             } else {
                 setToken('');
             }
-            setErrorMessage(null);
+
+            const storedError = sessionStorage.getItem('gsm_auth_error');
+            if (storedError) {
+                setErrorMessage(storedError);
+                sessionStorage.removeItem('gsm_auth_error');
+            } else {
+                setErrorMessage(null);
+            }
+
             setSuccessMessage(null);
             setIsLoading(false);
+            setCustomClientId(getOAuthClientId());
+            setCustomRedirectUri(getOAuthRedirectURI());
         }
     }, [isOpen]);
+
+    const handleClose = useCallback(() => {
+        setIsOpenInternal(false);
+        onClose();
+    }, [onClose]);
 
     const handleQuickFill = useCallback(() => {
         setToken(GSM_SAVED_TOKEN);
@@ -72,19 +127,28 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
             }
 
             setTimeout(() => {
-                onClose();
+                handleClose();
             }, 900);
         } catch (err: any) {
             console.error('[LoginModal] Authentication error:', err);
             setErrorMessage(err?.message || 'Unexpected connection error while authenticating.');
             setIsLoading(false);
         }
-    }, [token, onSuccess, onClose]);
+    }, [token, onSuccess, handleClose]);
 
     const handleOAuthRedirect = useCallback(async (isSignup = false) => {
         setIsLoading(true);
         setErrorMessage(null);
         try {
+            // If custom credentials entered, apply them
+            if (customClientId.trim() || customRedirectUri.trim()) {
+                setCustomOAuthCredentials(
+                    customClientId.trim() || undefined,
+                    undefined,
+                    customRedirectUri.trim() || undefined
+                );
+            }
+
             const url = await generateOAuthURL(isSignup ? 'registration' : undefined);
             if (url) {
                 window.location.replace(url);
@@ -97,12 +161,30 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
             setErrorMessage('Deriv OAuth redirect failed. Please try Token login.');
             setIsLoading(false);
         }
+    }, [customClientId, customRedirectUri]);
+
+    const handleSaveCustomCredentials = useCallback(() => {
+        setCustomOAuthCredentials(
+            customClientId.trim() || undefined,
+            undefined,
+            customRedirectUri.trim() || undefined
+        );
+        setSuccessMessage('Deriv OAuth App configuration saved.');
+        setTimeout(() => setSuccessMessage(null), 3000);
+    }, [customClientId, customRedirectUri]);
+
+    const handleResetCredentials = useCallback(() => {
+        resetOAuthCredentials();
+        setCustomClientId(getOAuthClientId());
+        setCustomRedirectUri(getOAuthRedirectURI());
+        setSuccessMessage('Credentials reset to defaults.');
+        setTimeout(() => setSuccessMessage(null), 3000);
     }, []);
 
     if (!isOpen) return null;
 
     return (
-        <div className="gsm-login-overlay" onClick={onClose}>
+        <div className="gsm-login-overlay" onClick={handleClose}>
             <div className="gsm-login-modal" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="gsm-login-header">
@@ -137,7 +219,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
                             <p className="gsm-login-header__subtitle">Gold Standard Market Trading Terminal</p>
                         </div>
                     </div>
-                    <button className="gsm-login-close-btn" onClick={onClose} aria-label="Close modal">
+                    <button className="gsm-login-close-btn" onClick={handleClose} aria-label="Close modal">
                         ✕
                     </button>
                 </div>
@@ -151,6 +233,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
                     >
                         <span className="gsm-login-tab__indicator"></span>
                         API Token / PAT
+                        <span className="gsm-tab-badge">Fast & Direct</span>
                     </button>
                     <button
                         className={`gsm-login-tab ${activeTab === 'oauth' ? 'gsm-login-tab--active' : ''}`}
@@ -231,7 +314,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
                                     <ol>
                                         <li>Log in to your Deriv account at <a href="https://app.deriv.com/account/api-token" target="_blank" rel="noopener noreferrer">app.deriv.com/account/api-token</a></li>
                                         <li>Go to <strong>Account Settings</strong> → <strong>API Token</strong></li>
-                                        <li>Select token scopes: check <strong>Read</strong> and <strong>Trade</strong> (and <strong>Payments</strong> if you want cashier transfers)</li>
+                                        <li>Select token scopes: check <strong>Read</strong> and <strong>Trade</strong> (and <strong>Payments</strong> for cashier access)</li>
                                         <li>Click <strong>Create</strong> and copy your token</li>
                                         <li>Paste your token in the field above and click Connect</li>
                                     </ol>
@@ -259,10 +342,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
                     </form>
                 ) : (
                     <div className="gsm-login-oauth-section">
-                        <p className="gsm-login-oauth-desc">
-                            Authenticate directly through Deriv's official OAuth 2.0 authorization server.
-                            You will be redirected to Deriv to sign in and grant trade access to Gold Standard Market.
-                        </p>
+                        <div className="gsm-oauth-notice">
+                            <div className="gsm-oauth-notice__icon">ℹ</div>
+                            <div className="gsm-oauth-notice__text">
+                                Deriv OAuth 2.0 requires the redirect URL (<code>{getOAuthRedirectURI()}</code>) to be pre-registered under your Deriv App ID. If Deriv blocks the redirect, register your App ID below or use the <strong>API Token</strong> tab for immediate login.
+                            </div>
+                        </div>
 
                         <button
                             type="button"
@@ -286,17 +371,85 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
                         </button>
 
                         <div className="gsm-login-divider">
-                            <span>or</span>
+                            <span>or register new account</span>
                         </div>
 
-                        <button
-                            type="button"
+                        <a
+                            href="https://deriv.com/signup/"
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="gsm-login-btn gsm-login-btn--secondary"
-                            onClick={() => handleOAuthRedirect(true)}
-                            disabled={isLoading}
+                            style={{ textAlign: 'center', textDecoration: 'none' }}
                         >
-                            Create a New Deriv Account
-                        </button>
+                            Create a Free Deriv Account ↗
+                        </a>
+
+                        {/* Collapsible Advanced App ID Configuration */}
+                        <div className="gsm-login-guide" style={{ marginTop: '16px' }}>
+                            <button
+                                type="button"
+                                className="gsm-login-guide__toggle"
+                                onClick={() => setShowAdvancedOAuth(!showAdvancedOAuth)}
+                            >
+                                <span>{showAdvancedOAuth ? '▼' : '▶'} Deriv App ID & Redirection Settings</span>
+                                <span className="gsm-login-guide__badge" style={{ background: 'rgba(212, 175, 55, 0.15)', color: '#D4AF37' }}>Advanced</span>
+                            </button>
+                            {showAdvancedOAuth && (
+                                <div className="gsm-login-guide__content">
+                                    <p style={{ margin: '0 0 10px 0', fontSize: '0.75rem' }}>
+                                        To enable 1-click OAuth redirects to <strong>{getOAuthRedirectURI()}</strong>:
+                                    </p>
+                                    <ol style={{ fontSize: '0.75rem', marginBottom: '12px' }}>
+                                        <li>Open <a href="https://api.deriv.com/docs/app-registration/" target="_blank" rel="noopener noreferrer">api.deriv.com/docs/app-registration/</a></li>
+                                        <li>Register App: <code>Gold Standard Market</code></li>
+                                        <li>Set Redirect URL: <code>{getOAuthRedirectURI()}</code></li>
+                                        <li>Check scopes: <code>read</code>, <code>trade</code>, <code>payments</code>, <code>admin</code></li>
+                                        <li>Copy your generated <strong>App ID / Client ID</strong> and paste below:</li>
+                                    </ol>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
+                                        <label style={{ fontSize: '0.7rem', color: '#94a3b8' }}>OAuth Client ID / App ID:</label>
+                                        <input
+                                            type="text"
+                                            className="gsm-login-input"
+                                            value={customClientId}
+                                            onChange={e => setCustomClientId(e.target.value)}
+                                            placeholder="e.g. 67890 or 342vx4..."
+                                            style={{ fontSize: '0.8rem', padding: '6px 10px' }}
+                                        />
+
+                                        <label style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Redirect URI:</label>
+                                        <input
+                                            type="text"
+                                            className="gsm-login-input"
+                                            value={customRedirectUri}
+                                            onChange={e => setCustomRedirectUri(e.target.value)}
+                                            placeholder="https://goldstandardmarket.vercel.app"
+                                            style={{ fontSize: '0.8rem', padding: '6px 10px' }}
+                                        />
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <button
+                                            type="button"
+                                            className="gsm-login-btn gsm-login-btn--primary"
+                                            style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                                            onClick={handleSaveCustomCredentials}
+                                        >
+                                            Save Settings
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="gsm-login-btn gsm-login-btn--secondary"
+                                            style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                                            onClick={handleResetCredentials}
+                                        >
+                                            Reset Defaults
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
 
@@ -316,4 +469,3 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
 };
 
 export default LoginModal;
-
