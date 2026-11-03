@@ -1,6 +1,6 @@
 /**
  * Pegasus Strategy Generator & Blockly Workspace Injector
- * Generates robust Deriv Bot strategies across Over/Under, Even/Odd, and Matches/Differs.
+ * Generates exact Pegasus algorithmic strategies matching reference video specifications.
  */
 
 import { IPegasusSignal, TPegasusTradeType } from './pegasus-scanner-service';
@@ -23,15 +23,14 @@ export const generatePegasusXml = (options: IPegasusStrategyOptions): string => 
         symbol,
         stake,
         takeProfit,
-        stopLoss = Math.max(100, stake * 10),
+        stopLoss = 1000,
         tradeType = 'DIGITOVER',
-        barrier = 1,
+        barrier = 2,
         martingaleMultiplier = 2.0,
-        maxLossStreak = 4,
+        maxLossStreak = 5,
         durationTicks = 1,
     } = options;
 
-    // Map trade types to Blockly category and contract configuration
     let tradeTypeCat = 'digits';
     let tradeTypeList = 'overunder';
     let hasPrediction = true;
@@ -95,13 +94,17 @@ export const generatePegasusXml = (options: IPegasusStrategyOptions): string => 
 
     return `<xml xmlns="https://developers.google.com/blockly/xml" is_dbot="true" collection="false" data-strategy-origin="pegasus" data-strategy-name="Pegasus AI Engine">
   <variables>
-    <variable id="pegasus_stake">pegasus initial stake</variable>
-    <variable id="pegasus_tp">pegasus take profit</variable>
-    <variable id="pegasus_sl">pegasus stop loss</variable>
-    <variable id="pegasus_curr_stake">pegasus current stake</variable>
-    <variable id="pegasus_mart">pegasus martingale</variable>
-    <variable id="pegasus_consec_losses">pegasus consecutive losses</variable>
-    <variable id="pegasus_max_consec">pegasus max consecutive losses</variable>
+    <variable id="pegasus_initial_stake">pegasus-initial-stake</variable>
+    <variable id="pegasus_current_stake">pegasus-current-stake</variable>
+    <variable id="pegasus_active_barrier">pegasus-active-barrier</variable>
+    <variable id="pegasus_martingale_step">pegasus-martingale-step</variable>
+    <variable id="pegasus_maximum_steps">pegasus-maximum-steps</variable>
+    <variable id="pegasus_profit">pegasus-profit</variable>
+    <variable id="pegasus_session_profit">pegasus-session-profit</variable>
+    <variable id="pegasus_completed_contracts">pegasus-completed-contracts</variable>
+    <variable id="pegasus_take_profit">pegasus-take-profit</variable>
+    <variable id="pegasus_loss_threshold">pegasus-loss-threshold</variable>
+    <variable id="pegasus_mart_multiplier">pegasus-martingale-multiplier</variable>
   </variables>
   <block type="trade_definition" id="pegasus_trade_def" deletable="false" x="0" y="110">
     <statement name="TRADE_OPTIONS">
@@ -138,61 +141,101 @@ export const generatePegasusXml = (options: IPegasusStrategyOptions): string => 
       </block>
     </statement>
     <statement name="INITIALIZATION">
-      <block type="variables_set" id="init_pegasus_stake">
-        <field name="VAR" id="pegasus_stake">pegasus initial stake</field>
+      <block type="variables_set" id="init_initial_stake">
+        <field name="VAR" id="pegasus_initial_stake">pegasus-initial-stake</field>
         <value name="VALUE">
           <block type="math_number" id="num_stake">
             <field name="NUM">${stake}</field>
           </block>
         </value>
         <next>
-          <block type="variables_set" id="init_pegasus_tp">
-            <field name="VAR" id="pegasus_tp">pegasus take profit</field>
+          <block type="variables_set" id="init_current_stake">
+            <field name="VAR" id="pegasus_current_stake">pegasus-current-stake</field>
             <value name="VALUE">
-              <block type="math_number" id="num_tp">
-                <field name="NUM">${takeProfit}</field>
+              <block type="math_number" id="num_curr_stake">
+                <field name="NUM">${stake}</field>
               </block>
             </value>
             <next>
-              <block type="variables_set" id="init_pegasus_sl">
-                <field name="VAR" id="pegasus_sl">pegasus stop loss</field>
+              <block type="variables_set" id="init_barrier">
+                <field name="VAR" id="pegasus_active_barrier">pegasus-active-barrier</field>
                 <value name="VALUE">
-                  <block type="math_number" id="num_sl">
-                    <field name="NUM">${stopLoss}</field>
+                  <block type="math_number" id="num_barrier">
+                    <field name="NUM">${barrier}</field>
                   </block>
                 </value>
                 <next>
-                  <block type="variables_set" id="init_curr_stake">
-                    <field name="VAR" id="pegasus_curr_stake">pegasus current stake</field>
+                  <block type="variables_set" id="init_step">
+                    <field name="VAR" id="pegasus_martingale_step">pegasus-martingale-step</field>
                     <value name="VALUE">
-                      <block type="math_number" id="num_curr_stake">
-                        <field name="NUM">${stake}</field>
+                      <block type="math_number" id="num_step_zero">
+                        <field name="NUM">0</field>
                       </block>
                     </value>
                     <next>
-                      <block type="variables_set" id="init_mart">
-                        <field name="VAR" id="pegasus_mart">pegasus martingale</field>
+                      <block type="variables_set" id="init_max_steps">
+                        <field name="VAR" id="pegasus_maximum_steps">pegasus-maximum-steps</field>
                         <value name="VALUE">
-                          <block type="math_number" id="num_mart">
-                            <field name="NUM">${martingaleMultiplier}</field>
+                          <block type="math_number" id="num_max_steps">
+                            <field name="NUM">${maxLossStreak}</field>
                           </block>
                         </value>
                         <next>
-                          <block type="variables_set" id="init_consec">
-                            <field name="VAR" id="pegasus_consec_losses">pegasus consecutive losses</field>
+                          <block type="variables_set" id="init_profit">
+                            <field name="VAR" id="pegasus_profit">pegasus-profit</field>
                             <value name="VALUE">
-                              <block type="math_number" id="num_consec">
+                              <block type="math_number" id="num_profit_zero">
                                 <field name="NUM">0</field>
                               </block>
                             </value>
                             <next>
-                              <block type="variables_set" id="init_max_consec">
-                                <field name="VAR" id="pegasus_max_consec">pegasus max consecutive losses</field>
+                              <block type="variables_set" id="init_session_profit">
+                                <field name="VAR" id="pegasus_session_profit">pegasus-session-profit</field>
                                 <value name="VALUE">
-                                  <block type="math_number" id="num_max_consec">
-                                    <field name="NUM">${maxLossStreak}</field>
+                                  <block type="math_number" id="num_sess_zero">
+                                    <field name="NUM">0</field>
                                   </block>
                                 </value>
+                                <next>
+                                  <block type="variables_set" id="init_completed">
+                                    <field name="VAR" id="pegasus_completed_contracts">pegasus-completed-contracts</field>
+                                    <value name="VALUE">
+                                      <block type="math_number" id="num_comp_zero">
+                                        <field name="NUM">0</field>
+                                      </block>
+                                    </value>
+                                    <next>
+                                      <block type="variables_set" id="init_tp">
+                                        <field name="VAR" id="pegasus_take_profit">pegasus-take-profit</field>
+                                        <value name="VALUE">
+                                          <block type="math_number" id="num_tp">
+                                            <field name="NUM">${takeProfit}</field>
+                                          </block>
+                                        </value>
+                                        <next>
+                                          <block type="variables_set" id="init_loss_thresh">
+                                            <field name="VAR" id="pegasus_loss_threshold">pegasus-loss-threshold</field>
+                                            <value name="VALUE">
+                                              <block type="math_number" id="num_loss_thresh">
+                                                <field name="NUM">${stopLoss}</field>
+                                              </block>
+                                            </value>
+                                            <next>
+                                              <block type="variables_set" id="init_mart_mult">
+                                                <field name="VAR" id="pegasus_mart_multiplier">pegasus-martingale-multiplier</field>
+                                                <value name="VALUE">
+                                                  <block type="math_number" id="num_mart_mult">
+                                                    <field name="NUM">${martingaleMultiplier}</field>
+                                                  </block>
+                                                </value>
+                                              </block>
+                                            </next>
+                                          </block>
+                                        </next>
+                                      </block>
+                                    </next>
+                                  </block>
+                                </next>
                               </block>
                             </next>
                           </block>
@@ -221,7 +264,7 @@ export const generatePegasusXml = (options: IPegasusStrategyOptions): string => 
             <field name="NUM">${stake}</field>
           </shadow>
           <block type="variables_get" id="get_curr_stake">
-            <field name="VAR" id="pegasus_curr_stake">pegasus current stake</field>
+            <field name="VAR" id="pegasus_current_stake">pegasus-current-stake</field>
           </block>
         </value>
         ${predictionValueBlock}
@@ -246,17 +289,17 @@ export const generatePegasusXml = (options: IPegasusStrategyOptions): string => 
         </value>
         <statement name="DO0">
           <block type="variables_set" id="reset_stake_win">
-            <field name="VAR" id="pegasus_curr_stake">pegasus current stake</field>
+            <field name="VAR" id="pegasus_current_stake">pegasus-current-stake</field>
             <value name="VALUE">
               <block type="variables_get" id="get_initial_stake">
-                <field name="VAR" id="pegasus_stake">pegasus initial stake</field>
+                <field name="VAR" id="pegasus_initial_stake">pegasus-initial-stake</field>
               </block>
             </value>
             <next>
-              <block type="variables_set" id="reset_consec_losses_win">
-                <field name="VAR" id="pegasus_consec_losses">pegasus consecutive losses</field>
+              <block type="variables_set" id="reset_mart_step">
+                <field name="VAR" id="pegasus_martingale_step">pegasus-martingale-step</field>
                 <value name="VALUE">
-                  <block type="math_number" id="num_zero_consec">
+                  <block type="math_number" id="num_zero_step">
                     <field name="NUM">0</field>
                   </block>
                 </value>
@@ -265,18 +308,18 @@ export const generatePegasusXml = (options: IPegasusStrategyOptions): string => 
           </block>
         </statement>
         <statement name="ELSE">
-          <block type="variables_set" id="incr_consec_loss">
-            <field name="VAR" id="pegasus_consec_losses">pegasus consecutive losses</field>
+          <block type="variables_set" id="incr_mart_step">
+            <field name="VAR" id="pegasus_martingale_step">pegasus-martingale-step</field>
             <value name="VALUE">
-              <block type="math_arithmetic" id="math_add_loss">
+              <block type="math_arithmetic" id="math_add_step">
                 <field name="OP">ADD</field>
                 <value name="A">
-                  <block type="variables_get" id="get_curr_consec">
-                    <field name="VAR" id="pegasus_consec_losses">pegasus consecutive losses</field>
+                  <block type="variables_get" id="get_curr_step">
+                    <field name="VAR" id="pegasus_martingale_step">pegasus-martingale-step</field>
                   </block>
                 </value>
                 <value name="B">
-                  <block type="math_number" id="num_one_loss">
+                  <block type="math_number" id="num_one_step">
                     <field name="NUM">1</field>
                   </block>
                 </value>
@@ -289,28 +332,28 @@ export const generatePegasusXml = (options: IPegasusStrategyOptions): string => 
                   <block type="logic_compare" id="compare_consec_max">
                     <field name="OP">GTE</field>
                     <value name="A">
-                      <block type="variables_get" id="get_cur_loss_consec">
-                        <field name="VAR" id="pegasus_consec_losses">pegasus consecutive losses</field>
+                      <block type="variables_get" id="get_cur_step">
+                        <field name="VAR" id="pegasus_martingale_step">pegasus-martingale-step</field>
                       </block>
                     </value>
                     <value name="B">
-                      <block type="variables_get" id="get_max_loss_consec">
-                        <field name="VAR" id="pegasus_max_consec">pegasus max consecutive losses</field>
+                      <block type="variables_get" id="get_max_steps">
+                        <field name="VAR" id="pegasus_maximum_steps">pegasus-maximum-steps</field>
                       </block>
                     </value>
                   </block>
                 </value>
                 <statement name="DO0">
                   <block type="variables_set" id="circuit_reset_stake">
-                    <field name="VAR" id="pegasus_curr_stake">pegasus current stake</field>
+                    <field name="VAR" id="pegasus_current_stake">pegasus-current-stake</field>
                     <value name="VALUE">
                       <block type="variables_get" id="get_init_stake_breaker">
-                        <field name="VAR" id="pegasus_stake">pegasus initial stake</field>
+                        <field name="VAR" id="pegasus_initial_stake">pegasus-initial-stake</field>
                       </block>
                     </value>
                     <next>
-                      <block type="variables_set" id="circuit_reset_count">
-                        <field name="VAR" id="pegasus_consec_losses">pegasus consecutive losses</field>
+                      <block type="variables_set" id="circuit_reset_step">
+                        <field name="VAR" id="pegasus_martingale_step">pegasus-martingale-step</field>
                         <value name="VALUE">
                           <block type="math_number" id="num_breaker_zero">
                             <field name="NUM">0</field>
@@ -322,7 +365,7 @@ export const generatePegasusXml = (options: IPegasusStrategyOptions): string => 
                 </statement>
                 <statement name="ELSE">
                   <block type="variables_set" id="apply_martingale_multiplier">
-                    <field name="VAR" id="pegasus_curr_stake">pegasus current stake</field>
+                    <field name="VAR" id="pegasus_current_stake">pegasus-current-stake</field>
                     <value name="VALUE">
                       <block type="math_arithmetic" id="mult_stake">
                         <field name="OP">MULTIPLY</field>
@@ -331,12 +374,12 @@ export const generatePegasusXml = (options: IPegasusStrategyOptions): string => 
                             <field name="NUM">1</field>
                           </shadow>
                           <block type="variables_get" id="get_curr_for_mult">
-                            <field name="VAR" id="pegasus_curr_stake">pegasus current stake</field>
+                            <field name="VAR" id="pegasus_current_stake">pegasus-current-stake</field>
                           </block>
                         </value>
                         <value name="B">
                           <block type="variables_get" id="get_mart_factor">
-                            <field name="VAR" id="pegasus_mart">pegasus martingale</field>
+                            <field name="VAR" id="pegasus_mart_multiplier">pegasus-martingale-multiplier</field>
                           </block>
                         </value>
                       </block>
@@ -358,7 +401,7 @@ export const generatePegasusXml = (options: IPegasusStrategyOptions): string => 
                 </value>
                 <value name="B">
                   <block type="variables_get" id="get_tp_val">
-                    <field name="VAR" id="pegasus_tp">pegasus take profit</field>
+                    <field name="VAR" id="pegasus_take_profit">pegasus-take-profit</field>
                   </block>
                 </value>
               </block>
@@ -386,7 +429,7 @@ export const generatePegasusXml = (options: IPegasusStrategyOptions): string => 
                         <field name="OP">NEG</field>
                         <value name="NUM">
                           <block type="variables_get" id="get_sl_val">
-                            <field name="VAR" id="pegasus_sl">pegasus stop loss</field>
+                            <field name="VAR" id="pegasus_loss_threshold">pegasus-loss-threshold</field>
                           </block>
                         </value>
                       </block>
@@ -419,9 +462,9 @@ export const loadPegasusStrategyToWorkspace = (
     symbol: string,
     stake: number,
     takeProfit: number,
-    barrier: number = 1,
+    barrier: number = 2,
     tradeType: TPegasusTradeType = 'DIGITOVER',
-    stopLoss: number = 100,
+    stopLoss: number = 1000,
     martingaleMultiplier: number = 2.0
 ): boolean => {
     try {
@@ -433,11 +476,10 @@ export const loadPegasusStrategyToWorkspace = (
             tradeType,
             barrier,
             martingaleMultiplier,
-            maxLossStreak: 4,
+            maxLossStreak: 5,
             durationTicks: 1,
         });
 
-        // Persist parameters in localStorage for AI HUD and target monitoring
         localStorage.setItem('pegasus_active_stake', String(stake));
         localStorage.setItem('pegasus_active_take_profit', String(takeProfit));
         localStorage.setItem('pegasus_active_stop_loss', String(stopLoss));

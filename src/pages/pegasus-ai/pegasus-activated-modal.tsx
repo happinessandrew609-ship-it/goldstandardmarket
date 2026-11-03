@@ -1,5 +1,4 @@
 import React from 'react';
-import { useStore } from '@/hooks/useStore';
 
 interface IPegasusActivatedModalProps {
     isOpen: boolean;
@@ -21,91 +20,114 @@ export const PegasusActivatedModal: React.FC<IPegasusActivatedModalProps> = ({
                     ✕
                 </button>
 
-                <div className="pegasus-modal__art">
-                    <svg viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <div className="pegasus-modal__top-info">
+                    <h2 className="pegasus-modal__title pegasus-modal__title--gold">
+                        PEGASUS ACTIVATED
+                    </h2>
+                    <div className="pegasus-modal__status-pill">
+                        <span className="pegasus-modal__status-dot" />
+                        <span>PEGASUS CORE ONLINE</span>
+                    </div>
+                </div>
+
+                <div className="pegasus-modal__art pegasus-modal__art--creation">
+                    <svg viewBox="0 0 320 180" fill="none" xmlns="http://www.w3.org/2000/svg" className="pegasus-modal__art-svg">
                         <defs>
-                            <radialGradient id="ai-glow" cx="50%" cy="50%" r="50%">
-                                <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.8" />
-                                <stop offset="60%" stopColor="#2563eb" stopOpacity="0.4" />
-                                <stop offset="100%" stopColor="#1e3a8a" stopOpacity="0" />
-                            </radialGradient>
-                            <linearGradient id="ai-circuit" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor="#facc15" />
-                                <stop offset="50%" stopColor="#60a5fa" />
-                                <stop offset="100%" stopColor="#2563eb" />
+                            <linearGradient id="neural-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.9" />
+                                <stop offset="50%" stopColor="#2563eb" stopOpacity="0.4" />
+                                <stop offset="100%" stopColor="#0f172a" stopOpacity="0" />
                             </linearGradient>
-                            <filter id="hologram-bloom" x="-20%" y="-20%" width="140%" height="140%">
-                                <feGaussianBlur stdDeviation="4" result="blur" />
-                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                            <linearGradient id="cyber-gold" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stopColor="#fef08a" />
+                                <stop offset="50%" stopColor="#facc15" />
+                                <stop offset="100%" stopColor="#eab308" />
+                            </linearGradient>
+                            <radialGradient id="spark-core" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stopColor="#ffffff" />
+                                <stop offset="40%" stopColor="#67e8f9" />
+                                <stop offset="80%" stopColor="#3b82f6" />
+                                <stop offset="100%" stopColor="transparent" />
+                            </radialGradient>
+                            <filter id="core-bloom">
+                                <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+                                <feMerge>
+                                    <feMergeNode in="coloredBlur" />
+                                    <feMergeNode in="SourceGraphic" />
+                                </feMerge>
                             </filter>
                         </defs>
 
-                        {/* Outer rotating pulse ring */}
-                        <circle cx="80" cy="80" r="70" stroke="url(#ai-circuit)" strokeWidth="1.5" strokeDasharray="6 8" opacity="0.8">
-                            <animateTransform attributeName="transform" type="rotate" from="0 80 80" to="360 80 80" dur="12s" repeatCount="indefinite" />
-                        </circle>
-                        <circle cx="80" cy="80" r="58" stroke="#3b82f6" strokeWidth="1" opacity="0.4" />
-                        <circle cx="80" cy="80" r="50" fill="url(#ai-glow)" />
+                        {/* Background Data Grid */}
+                        <rect width="320" height="180" rx="12" fill="#050c1a" />
+                        <path d="M0 45H320 M0 90H320 M0 135H320 M80 0V180 M160 0V180 M240 0V180" stroke="#1e293b" strokeWidth="0.8" opacity="0.4" />
 
-                        {/* Futuristic AI Cyborg Brain Mesh */}
-                        <g filter="url(#hologram-bloom)">
-                            <path
-                                d="M80 32C56 32 38 48 38 72C38 88 48 102 62 112L62 124C62 126 64 128 66 128H94C96 128 98 126 98 124L98 112C112 102 122 88 122 72C122 48 104 32 80 32Z"
-                                stroke="#facc15"
-                                strokeWidth="2.2"
-                                fill="rgba(15, 23, 42, 0.7)"
-                            />
-                            {/* Circuit nodes inside */}
-                            <path d="M54 70H106 M80 44V116 M60 56L100 96 M100 56L60 96" stroke="#60a5fa" strokeWidth="1.2" opacity="0.65" strokeDasharray="3 3" />
-                            <circle cx="80" cy="70" r="16" fill="rgba(37, 99, 235, 0.5)" stroke="#facc15" strokeWidth="1.8" />
-                            <text x="80" y="76" textAnchor="middle" fill="#ffffff" fontSize="16" fontWeight="900" fontFamily="sans-serif">
-                                AI
-                            </text>
+                        {/* Floating Floating Hex / Chat Icon Overlays */}
+                        <g opacity="0.6">
+                            <rect x="35" y="24" width="46" height="22" rx="4" fill="#0f172a" stroke="#38bdf8" strokeWidth="0.8" />
+                            <circle cx="48" cy="35" r="2" fill="#38bdf8" />
+                            <circle cx="58" cy="35" r="2" fill="#38bdf8" />
+                            <circle cx="68" cy="35" r="2" fill="#38bdf8" />
 
-                            {/* Glowing chin lines */}
-                            <line x1="68" y1="120" x2="92" y2="120" stroke="#facc15" strokeWidth="2" strokeLinecap="round" />
-                            <line x1="72" y1="124" x2="88" y2="124" stroke="#60a5fa" strokeWidth="1.5" strokeLinecap="round" />
+                            <rect x="235" y="24" width="48" height="22" rx="4" fill="#0f172a" stroke="#facc15" strokeWidth="0.8" />
+                            <path d="M246 35H272" stroke="#facc15" strokeWidth="1.5" strokeDasharray="3 2" />
                         </g>
 
-                        {/* Floating neural spark dots */}
-                        <circle cx="48" cy="52" r="2.5" fill="#fde047">
-                            <animate attributeName="opacity" values="0.2;1;0.2" dur="1.8s" repeatCount="indefinite" />
+                        {/* Left Human Hand (Stylized Silhouette) */}
+                        <path
+                            d="M0 135 C35 125, 75 118, 105 106 C115 102, 130 96, 142 90 L146 92 C135 100, 115 110, 85 125 C60 135, 25 145, 0 152 Z"
+                            fill="#334155"
+                            stroke="#64748b"
+                            strokeWidth="1.2"
+                        />
+                        <path d="M100 108 L142 90" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" />
+
+                        {/* Right Robot Hand (Cybernetic Silhouette with Gold & Blue Wireframe) */}
+                        <path
+                            d="M320 135 C285 125, 245 118, 215 106 C205 102, 190 96, 178 90 L174 92 C185 100, 205 110, 235 125 C260 135, 295 145, 320 152 Z"
+                            fill="#0f172a"
+                            stroke="url(#cyber-gold)"
+                            strokeWidth="1.5"
+                        />
+                        {/* Robot Finger Segments & Circuitry */}
+                        <path d="M220 108 L178 90" stroke="#facc15" strokeWidth="1.8" strokeLinecap="round" />
+                        <circle cx="215" cy="106" r="3" fill="#38bdf8" />
+                        <circle cx="195" cy="98" r="2.5" fill="#facc15" />
+                        <line x1="230" y1="116" x2="260" y2="128" stroke="#38bdf8" strokeWidth="1.2" strokeDasharray="2 3" />
+                        <line x1="240" y1="122" x2="270" y2="134" stroke="#facc15" strokeWidth="1.2" />
+
+                        {/* Central Neural Connection Spark (Where hands meet) */}
+                        <circle cx="160" cy="91" r="28" fill="url(#neural-glow)" />
+                        <circle cx="160" cy="91" r="14" fill="url(#spark-core)" filter="url(#core-bloom)">
+                            <animate attributeName="r" values="10;16;10" dur="2s" repeatCount="indefinite" />
                         </circle>
-                        <circle cx="112" cy="52" r="2.5" fill="#60a5fa">
-                            <animate attributeName="opacity" values="1;0.2;1" dur="2s" repeatCount="indefinite" />
-                        </circle>
-                        <circle cx="42" cy="85" r="2" fill="#22c55e">
-                            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite" />
-                        </circle>
-                        <circle cx="118" cy="85" r="2" fill="#facc15">
-                            <animate attributeName="opacity" values="1;0.4;1" dur="2.2s" repeatCount="indefinite" />
-                        </circle>
+                        <circle cx="160" cy="91" r="4" fill="#ffffff" />
+
+                        {/* Radiating Lightning Sparks */}
+                        <path d="M152 86 L144 80 M168 86 L176 80 M160 80 L160 70 M153 98 L145 104 M167 98 L175 104" stroke="#67e8f9" strokeWidth="1.5" strokeLinecap="round" opacity="0.85">
+                            <animate attributeName="opacity" values="0.3;1;0.3" dur="0.8s" repeatCount="indefinite" />
+                        </path>
                     </svg>
                 </div>
 
-                <h2 className="pegasus-modal__title pegasus-modal__title--gold">
-                    PEGASUS ACTIVATED
-                </h2>
                 <p className="pegasus-modal__message">
                     Pegasus is synchronized with your selected signal. Confirm activation to begin automated trading.
                 </p>
 
                 <div className="pegasus-modal__actions">
-                    <button className="pegasus-modal__btn-cancel" onClick={onClose}>
-                        Cancel
-                    </button>
                     <button
                         className="pegasus-modal__btn-activate"
                         onClick={() => {
                             onActivate();
-                            onClose();
                         }}
                     >
                         Activate Pegasus
+                    </button>
+                    <button className="pegasus-modal__btn-cancel" onClick={onClose}>
+                        Cancel
                     </button>
                 </div>
             </div>
         </div>
     );
 };
-

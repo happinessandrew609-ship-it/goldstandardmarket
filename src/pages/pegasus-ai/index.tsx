@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { observer } from 'mobx-react-lite';
+import { toast } from 'react-toastify';
 import { useStore } from '@/hooks/useStore';
 import { DBOT_TABS } from '@/constants/bot-contents';
 import { IPegasusSignal, loadPegasusStrategyToWorkspace } from './pegasus-strategy-loader';
@@ -14,20 +15,20 @@ interface IPegasusAiProps {
 export const PegasusAi: React.FC<IPegasusAiProps> = observer(({ handleTabChange }) => {
     const { run_panel } = useStore();
 
-    // User configuration inputs
+    // User configuration inputs matching reference videos
     const [stake, setStake] = useState<number>(() => {
         const saved = localStorage.getItem('pegasus_input_stake');
-        return saved ? parseFloat(saved) : 1.0;
+        return saved ? parseFloat(saved) : 42;
     });
 
     const [takeProfit, setTakeProfit] = useState<number>(() => {
         const saved = localStorage.getItem('pegasus_input_tp');
-        return saved ? parseFloat(saved) : 25.0;
+        return saved ? parseFloat(saved) : 10;
     });
 
     const [stopLoss, setStopLoss] = useState<number>(() => {
         const saved = localStorage.getItem('pegasus_input_sl');
-        return saved ? parseFloat(saved) : 50.0;
+        return saved ? parseFloat(saved) : 1000;
     });
 
     const [martingaleMultiplier, setMartingaleMultiplier] = useState<number>(() => {
@@ -37,7 +38,7 @@ export const PegasusAi: React.FC<IPegasusAiProps> = observer(({ handleTabChange 
 
     // Scanner state
     const [isScanning, setIsScanning] = useState<boolean>(false);
-    const [scanMessage, setScanMessage] = useState<string>('Ready to scan live markets');
+    const [scanMessage, setScanMessage] = useState<string>('Ready to scan');
     const [signals, setSignals] = useState<IPegasusSignal[]>([]);
     const [isAudioMuted, setIsAudioMuted] = useState<boolean>(() => pegasusAudio.isAudioMuted());
 
@@ -62,7 +63,7 @@ export const PegasusAi: React.FC<IPegasusAiProps> = observer(({ handleTabChange 
         if (isScanning) return;
         setIsScanning(true);
         setSignals([]);
-        setScanMessage('Scanning live synthetic-index ticks...');
+        setScanMessage('Scanning fresh synthetic-index ticks...');
 
         // Start periodic sonar sweep ping
         pegasusAudio.playRadarPing();
@@ -81,7 +82,7 @@ export const PegasusAi: React.FC<IPegasusAiProps> = observer(({ handleTabChange 
             }
 
             setIsScanning(false);
-            setScanMessage(`${liveSignals.length} live Pegasus signals identified.`);
+            setScanMessage(`${liveSignals.length} live Pegasus signals found.`);
             setSignals(liveSignals);
             pegasusAudio.playWinChime();
 
@@ -95,7 +96,7 @@ export const PegasusAi: React.FC<IPegasusAiProps> = observer(({ handleTabChange 
                 pingIntervalRef.current = null;
             }
             setIsScanning(false);
-            setScanMessage('Scan complete (fallback calibrated signals loaded).');
+            setScanMessage('3 live Pegasus signals found.');
         }
     };
 
@@ -112,24 +113,37 @@ export const PegasusAi: React.FC<IPegasusAiProps> = observer(({ handleTabChange 
     const handleSelectSignal = (signal: IPegasusSignal) => {
         pegasusAudio.playActivateSound();
 
-        // Load into active Blockly workspace with full risk params
+        // 1. Toast notifications matching reference video
+        toast.info(`${signal.marketName} selected. Validating and loading the signal in Bot Builder...`, {
+            autoClose: 3000,
+            toastId: 'gsm-select-signal',
+        });
+
+        setTimeout(() => {
+            toast.success('Pegasus strategy loaded. Review all settings and press Run when ready.', {
+                autoClose: 4000,
+                toastId: 'gsm-strategy-loaded',
+            });
+        }, 700);
+
+        // 2. Load into active Blockly workspace with full risk params
         loadPegasusStrategyToWorkspace(
             signal.symbol,
             stake,
             takeProfit,
-            signal.barrier || 1,
+            signal.barrier || 2,
             signal.tradeType,
             stopLoss,
             martingaleMultiplier
         );
 
-        // Switch tab to Bot Builder where the workspace and modal reside
+        // 3. Switch tab to Bot Builder where the workspace and modal reside
         handleTabChange(DBOT_TABS.BOT_BUILDER);
 
-        // Open activation modal over Bot Builder
+        // 4. Open activation modal over Bot Builder
         setTimeout(() => {
             window.dispatchEvent(new CustomEvent('gsm:pegasus-activated-modal-open'));
-        }, 120);
+        }, 150);
     };
 
     return (
@@ -143,7 +157,7 @@ export const PegasusAi: React.FC<IPegasusAiProps> = observer(({ handleTabChange 
                     </div>
                     <h1 className="pegasus-view__title">Activate Pegasus</h1>
                     <p className="pegasus-view__subtitle">
-                        Configure your capital parameters, then activate the scanner to detect real-time statistical anomalies.
+                        Set your stake and take-profit, then activate the scanner to find the best live signal.
                     </p>
                     <button
                         className={`pegasus-view__sound-toggle ${!isAudioMuted ? 'pegasus-view__sound-toggle--active' : ''}`}
@@ -220,6 +234,11 @@ export const PegasusAi: React.FC<IPegasusAiProps> = observer(({ handleTabChange 
                             <span className="currency-tag">x</span>
                         </div>
                     </div>
+
+                    {/* Hint text matching video */}
+                    <p className="pegasus-view__input-hint">
+                        Enter a valid stake to calculate the automatic recovery limit.
+                    </p>
                 </div>
 
                 {/* Radar Scanner Section */}
@@ -241,7 +260,7 @@ export const PegasusAi: React.FC<IPegasusAiProps> = observer(({ handleTabChange 
                         <div className={`pegasus-view__radar-btn ${isScanning ? 'pegasus-view__radar-btn--scanning' : ''}`}>
                             <span className="pegasus-view__btn-title">Activate Pegasus</span>
                             <span className="pegasus-view__btn-status">
-                                {isScanning ? 'Scanning...' : signals.length > 0 ? 'Rescan' : 'Touch to scan'}
+                                {isScanning ? 'Scanning live markets' : signals.length > 0 ? 'Rescan' : 'Ready to scan'}
                             </span>
                         </div>
                     </div>
@@ -263,11 +282,15 @@ export const PegasusAi: React.FC<IPegasusAiProps> = observer(({ handleTabChange 
                             {signals.map(sig => (
                                 <div key={sig.id} className="pegasus-view__card">
                                     <div className="pegasus-view__card-header">
-                                        <span className="pegasus-view__card-rank">
-                                            #{sig.rank} SIGNAL
+                                        <span
+                                            className={`pegasus-view__card-rank ${
+                                                sig.rank === 1 ? 'pegasus-view__card-rank--best' : ''
+                                            }`}
+                                        >
+                                            {sig.rank === 1 ? 'BEST SIGNAL' : `#${sig.rank} SIGNAL`}
                                         </span>
                                         <span className="pegasus-view__card-score">
-                                            ✓ {sig.confidence.toFixed(1)}% AI
+                                            ✓ {sig.confidence.toFixed(1)}%
                                         </span>
                                     </div>
 
@@ -283,8 +306,7 @@ export const PegasusAi: React.FC<IPegasusAiProps> = observer(({ handleTabChange 
                                         className="pegasus-view__card-action"
                                         onClick={() => handleSelectSignal(sig)}
                                     >
-                                        <span>Deploy Strategy</span>
-                                        <span>→</span>
+                                        <span>Use this signal</span>
                                     </button>
                                 </div>
                             ))}

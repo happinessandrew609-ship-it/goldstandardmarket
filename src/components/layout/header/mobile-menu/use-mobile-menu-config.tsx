@@ -67,6 +67,27 @@ const useMobileMenuConfig = (
                         onClick: onLogout,
                         removeBorderBottom: true,
                     },
+                !client?.is_logged_in && {
+                    as: 'button',
+                    label: localize('Log in'),
+                    LeftComponent: LegacyLogout1pxIcon,
+                    onClick: async () => {
+                        const { generateOAuthURL } = await import('@/components/shared');
+                        const url = await generateOAuthURL();
+                        if (url) window.location.replace(url);
+                    },
+                },
+                !client?.is_logged_in && {
+                    as: 'button',
+                    label: localize('Sign up'),
+                    LeftComponent: LegacyLogout1pxIcon,
+                    onClick: async () => {
+                        const { generateOAuthURL } = await import('@/components/shared');
+                        const url = await generateOAuthURL('registration');
+                        if (url) window.location.replace(url);
+                    },
+                    removeBorderBottom: true,
+                },
             ].filter(Boolean) as TMenuConfig,
         ].filter(section => section.length > 0);
     }, [

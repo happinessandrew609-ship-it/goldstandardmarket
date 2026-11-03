@@ -132,7 +132,7 @@ const AppHeader = observer(() => {
 
     const renderAccountSection = useCallback(
         (position: 'left' | 'right' = 'right') => {
-            // Show account switcher and logout when user is fully authenticated
+            // Show account switcher and transfer when user is fully authenticated
             if (activeLoginid && !is_account_regenerating) {
                 if (position === 'left' && !isDesktop) {
                     // For mobile left section - only account switcher
@@ -162,6 +162,43 @@ const AppHeader = observer(() => {
                         </div>
                     );
                 }
+            } else if (position === 'right') {
+                // Show spinner during loading states or when authorizing
+                if (isAuthorizing || isOAuthPending) {
+                    return (
+                        <div className='auth-actions auth-actions--loading'>
+                            <svg
+                                className='auth-actions__spinner'
+                                viewBox='0 0 24 24'
+                                fill='none'
+                                xmlns='http://www.w3.org/2000/svg'
+                            >
+                                <circle
+                                    cx='12'
+                                    cy='12'
+                                    r='10'
+                                    stroke='currentColor'
+                                    strokeWidth='2.5'
+                                    strokeLinecap='round'
+                                    strokeDasharray='31.416'
+                                    strokeDashoffset='10'
+                                />
+                            </svg>
+                        </div>
+                    );
+                }
+
+                // Show login and signup buttons when user is not authenticated
+                return (
+                    <div className='auth-actions'>
+                        <Button tertiary onClick={handleLogin}>
+                            <Localize i18n_default_text='Log in' />
+                        </Button>
+                        <Button primary_light onClick={handleSignup}>
+                            <Localize i18n_default_text='Sign up' />
+                        </Button>
+                    </div>
+                );
             }
 
             return null;

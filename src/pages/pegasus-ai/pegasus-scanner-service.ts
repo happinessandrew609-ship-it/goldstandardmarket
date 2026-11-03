@@ -259,3 +259,4 @@ function evaluateMarketSignals(marketData: Record<string, number[]>): IPegasusSi
         rank: idx + 1,
     }));
 }
+
