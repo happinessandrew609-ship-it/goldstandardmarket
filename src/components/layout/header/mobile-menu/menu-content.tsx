@@ -9,14 +9,15 @@ type TMenuContentProps = {
     enableThemeToggle?: boolean;
     onOpenSubmenu?: (submenu: string) => void;
     onLogout?: () => void;
+    onLogin?: () => void;
 };
 
-const MenuContent = observer(({ enableThemeToggle = true, onOpenSubmenu, onLogout }: TMenuContentProps) => {
+const MenuContent = observer(({ enableThemeToggle = true, onOpenSubmenu, onLogout, onLogin }: TMenuContentProps) => {
     const { isDesktop } = useDevice();
     const { client } = useStore();
     const textSize = isDesktop ? 'sm' : 'md';
     // Pass enableThemeToggle to control theme toggle visibility
-    const { config } = useMobileMenuConfig(client, onLogout, enableThemeToggle);
+    const { config } = useMobileMenuConfig(client, onLogout, enableThemeToggle, onLogin);
 
     return (
         <div className='mobile-menu__content'>

@@ -14,6 +14,7 @@ import { AppLogo } from '../app-logo';
 import AccountSwitcher from './account-switcher';
 import MenuItems from './menu-items';
 import MobileMenu from './mobile-menu';
+import LoginModal from './login-modal';
 import './header.scss';
 
 const AppHeader = observer(() => {
@@ -21,6 +22,7 @@ const AppHeader = observer(() => {
     const { isAuthorizing, activeLoginid, setIsAuthorizing, authData } = useApiBase();
     const { client } = useStore() ?? {};
     const [authTimeout, setAuthTimeout] = useState(false);
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const is_account_regenerating = client?.is_account_regenerating || false;
 
     // Detect OAuth callback on mount (before App.tsx cleans up the URL).
@@ -99,27 +101,9 @@ const AppHeader = observer(() => {
         }
     }, [setIsAuthorizing]);
 
-    const handleLogin = useCallback(async () => {
-        try {
-            // Set authorizing state immediately when login is clicked
-            setIsAuthorizing(true);
-
-            // Generate OAuth URL with CSRF token and PKCE parameters
-            const oauthUrl = await generateOAuthURL();
-
-            if (oauthUrl) {
-                // Redirect to OAuth URL
-                window.location.replace(oauthUrl);
-            } else {
-                console.error('Failed to generate OAuth URL');
-                setIsAuthorizing(false);
-            }
-        } catch (error) {
-            console.error('Login redirection failed:', error);
-            // Reset authorizing state if redirection fails
-            setIsAuthorizing(false);
-        }
-    }, [setIsAuthorizing]);
+    const handleLogin = useCallback(() => {
+        setIsLoginModalOpen(true);
+    }, []);
 
     const handleTransfer = useCallback(() => {
         const transferCurrency = authData?.currency;
@@ -230,12 +214,13 @@ const AppHeader = observer(() => {
                 })}
             >
                 <Wrapper variant='left'>
-                    <MobileMenu onLogout={handleLogout} />
+                    <MobileMenu onLogout={handleLogout} onLogin={() => setIsLoginModalOpen(true)} />
                     <AppLogo />
                     {isDesktop ? <MenuItems /> : renderAccountSection('left')}
                 </Wrapper>
                 <Wrapper variant='right'>{renderAccountSection('right')}</Wrapper>
             </Header>
+            <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
         </>
     );
 });

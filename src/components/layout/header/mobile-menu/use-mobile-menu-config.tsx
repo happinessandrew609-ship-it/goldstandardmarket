@@ -24,7 +24,8 @@ type TMenuConfig = {
 const useMobileMenuConfig = (
     client?: RootStore['client'],
     onLogout?: () => void,
-    enableThemeToggle: boolean = true
+    enableThemeToggle: boolean = true,
+    onLogin?: () => void
 ) => {
     const { localize } = useTranslations();
     const { is_dark_mode_on, toggleTheme } = useThemeSwitcher();
@@ -33,23 +34,6 @@ const useMobileMenuConfig = (
 
         return [
             [
-                // ========================================
-                // CUSTOM MENU ITEMS PLACEHOLDER
-                // ========================================
-                //
-                // Add your custom menu items here.
-                //
-                // EXAMPLE:
-                // {
-                //     as: 'a',
-                //     label: localize('Your Page'),
-                //     LeftComponent: YourIcon,
-                //     href: '/your-page',
-                // },
-                //
-                // For desktop menu items, see:
-                // src/components/layout/header/header-config.tsx
-
                 // Conditionally include theme toggle based on brand config
                 enableThemeToggle && {
                     as: 'button',
@@ -71,10 +55,16 @@ const useMobileMenuConfig = (
                     as: 'button',
                     label: localize('Log in'),
                     LeftComponent: LegacyLogout1pxIcon,
-                    onClick: async () => {
-                        const { generateOAuthURL } = await import('@/components/shared');
-                        const url = await generateOAuthURL();
-                        if (url) window.location.replace(url);
+                    onClick: () => {
+                        if (onLogin) {
+                            onLogin();
+                        } else {
+                            import('@/components/shared').then(({ generateOAuthURL }) =>
+                                generateOAuthURL().then(url => {
+                                    if (url) window.location.replace(url);
+                                })
+                            );
+                        }
                     },
                 },
                 !client?.is_logged_in && {
@@ -93,6 +83,7 @@ const useMobileMenuConfig = (
     }, [
         client,
         onLogout,
+        onLogin,
         is_dark_mode_on,
         toggleTheme,
         localize,

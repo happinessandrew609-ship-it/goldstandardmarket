@@ -23,8 +23,8 @@ export const OAUTH_APP_ID = 342;
 export const OAUTH_REDIRECT_URI = 'https://goldstandardmarket.vercel.app';
 
 export const WS_SERVERS = {
-    STAGING: `wss://staging-api.derivws.com/trading/v1/options/ws/public?app_id=${OAUTH_APP_ID}`,
-    PRODUCTION: `wss://api.derivws.com/trading/v1/options/ws/public?app_id=${OAUTH_APP_ID}`,
+    STAGING: `wss://ws.derivws.com/websockets/v3?app_id=${OAUTH_APP_ID}`,
+    PRODUCTION: `wss://ws.derivws.com/websockets/v3?app_id=${OAUTH_APP_ID}`,
 } as const;
 
 // =============================================================================
