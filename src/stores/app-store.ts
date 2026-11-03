@@ -163,6 +163,8 @@ export default class AppStore {
                                         window.Blockly.Events.fire(fake_create_event);
                                     });
                                 });
+                        }).catch(err => {
+                            console.warn('Active symbols refresh deferred:', err?.message || err);
                         });
                     }
                     DBot.initializeInterpreter();

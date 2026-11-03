@@ -241,11 +241,12 @@ export const generateOAuthURL = async (prompt?: string) => {
         storeCSRFToken(csrfToken);
 
         // Build OAuth2 PKCE URL using shared constants
+        const redirectUri = isLocal() ? window.location.origin : OAUTH_REDIRECT_URI;
         let oauthUrl = `https://auth.deriv.com/oauth2/auth?` +
             `scope=trade` +
             `&response_type=code` +
             `&client_id=${encodeURIComponent(OAUTH_CLIENT_ID)}` +
-            `&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}` +
+            `&redirect_uri=${encodeURIComponent(redirectUri)}` +
             `&state=${encodeURIComponent(csrfToken)}` +
             `&code_challenge=${encodeURIComponent(codeChallenge)}` +
             `&code_challenge_method=S256`;

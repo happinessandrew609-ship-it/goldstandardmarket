@@ -48,6 +48,7 @@ import PegasusAi from '../pegasus-ai';
 import { PegasusActivatedModal } from '../pegasus-ai/pegasus-activated-modal';
 import { PegasusVictoryModal } from '../pegasus-ai/pegasus-victory-modal';
 import { AiLiveHud } from '../pegasus-ai/ai-live-hud';
+import { pegasusAudio } from '../pegasus-ai/pegasus-audio';
 import MainNav, { TNavItem } from './main-nav';
 import RunStrategy from '../dashboard/run-strategy';
 import './main.scss';
@@ -152,7 +153,7 @@ const AppWrapper = observer(() => {
         resetUrlParamProcessing();
     }, [location.search]);
 
-    // Set up Pegasus AI event listeners & profit target monitoring
+    // Set up Pegasus AI event listeners & profit/loss target monitoring
     React.useEffect(() => {
         const handleProfitHit = (e: any) => {
             const msg = e?.detail?.message || '';
@@ -160,6 +161,7 @@ const AppWrapper = observer(() => {
             const amount = match ? match[1] : (e?.detail?.profit || '556.32');
             setPegasusVictoryAmount(amount);
             setIsVictoryModalOpen(true);
+            pegasusAudio.playVictoryFanfare();
             if (run_panel.is_running) {
                 run_panel.stopBot();
             }
@@ -181,11 +183,23 @@ const AppWrapper = observer(() => {
     React.useEffect(() => {
         const isPegasusActive = localStorage.getItem('pegasus_is_active') === 'true';
         const targetTp = parseFloat(localStorage.getItem('pegasus_active_take_profit') || localStorage.getItem('pegasus_input_tp') || '0');
-        if (isPegasusActive && run_panel.is_running && targetTp > 0 && summary_card.profit >= targetTp) {
-            run_panel.stopBot();
-            setPegasusVictoryAmount(summary_card.profit.toFixed(2));
-            setIsVictoryModalOpen(true);
-            localStorage.removeItem('pegasus_is_active');
+        const stopLoss = parseFloat(localStorage.getItem('pegasus_active_stop_loss') || localStorage.getItem('pegasus_input_sl') || '0');
+
+        if (isPegasusActive && run_panel.is_running) {
+            // Take profit check
+            if (targetTp > 0 && summary_card.profit >= targetTp) {
+                run_panel.stopBot();
+                setPegasusVictoryAmount(summary_card.profit.toFixed(2));
+                setIsVictoryModalOpen(true);
+                pegasusAudio.playVictoryFanfare();
+                localStorage.removeItem('pegasus_is_active');
+            }
+            // Stop loss check
+            else if (stopLoss > 0 && summary_card.profit <= -stopLoss) {
+                run_panel.stopBot();
+                pegasusAudio.playStopLossAlert();
+                localStorage.removeItem('pegasus_is_active');
+            }
         }
     }, [summary_card.profit, run_panel.is_running, run_panel]);
 
