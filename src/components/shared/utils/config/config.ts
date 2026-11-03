@@ -7,11 +7,13 @@ import brandConfig from '../../../../../brand.config.json';
 // Production app domains
 export const PRODUCTION_DOMAINS = {
     COM: brandConfig.platform.hostname.production.com,
+    SITE: brandConfig.platform.hostname.production.site || 'goldstandardmarket.site',
 } as const;
 
 // Staging app domains
 export const STAGING_DOMAINS = {
     COM: brandConfig.platform.hostname.staging.com,
+    SITE: brandConfig.platform.hostname.staging.site || 'goldstandardmarket.site',
 } as const;
 
 // Deriv OAuth2 PKCE configuration
