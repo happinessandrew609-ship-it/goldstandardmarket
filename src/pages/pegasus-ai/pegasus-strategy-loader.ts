@@ -486,17 +486,42 @@ export const loadPegasusStrategyToWorkspace = (
         localStorage.setItem('pegasus_active_symbol', symbol);
         localStorage.setItem('pegasus_active_tradetype', tradeType);
         localStorage.setItem('pegasus_is_active', 'true');
+        localStorage.setItem('bot_builder_token', '1');
 
-        const workspace = (window as any).Blockly?.derivWorkspace;
-        if (workspace && (window as any).Blockly?.Xml) {
-            workspace.clear();
-            const dom = (window as any).Blockly.Xml.textToDom(xmlString);
-            (window as any).Blockly.Xml.domToWorkspace(dom, workspace);
-            workspace.strategy_to_load = xmlString;
-            return true;
-        }
+        const settings = JSON.parse(localStorage.getItem('dbot_settings') || '{}');
+        settings.bot_builder_token = 1;
+        localStorage.setItem('dbot_settings', JSON.stringify(settings));
 
-        console.warn('Blockly workspace not ready, cached in strategy_to_load');
+        const loadStrategy = () => {
+            const ws = (window as any).Blockly?.derivWorkspace;
+            if (ws && (window as any).Blockly?.Xml) {
+                try {
+                    if (typeof ws.asyncClear === 'function') {
+                        ws.asyncClear();
+                    } else if (typeof ws.clear === 'function') {
+                        ws.clear();
+                    }
+                } catch (e) {
+                    // asyncClear safeguard
+                }
+                const textToDom = (window as any).Blockly.utils?.xml?.textToDom || (window as any).Blockly.Xml?.textToDom;
+                if (textToDom) {
+                    const dom = textToDom(xmlString);
+                    (window as any).Blockly.Xml.domToWorkspace(dom, ws);
+                    ws.strategy_to_load = xmlString;
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        if (loadStrategy()) return true;
+
+        // If workspace is still mounting, retry with exponential backoff
+        setTimeout(loadStrategy, 300);
+        setTimeout(loadStrategy, 700);
+        setTimeout(loadStrategy, 1500);
+
         if ((window as any).Blockly) {
             (window as any).Blockly.strategy_to_load = xmlString;
         }

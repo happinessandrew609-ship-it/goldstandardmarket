@@ -410,6 +410,16 @@ const AppWrapper = observer(() => {
     const handleTabChange = React.useCallback(
         (tab_index: number) => {
             setActiveTab(tab_index);
+            const targetHash = hash[tab_index];
+            if (targetHash) {
+                window.location.hash = `#${targetHash}`;
+            } else {
+                try {
+                    history.replaceState(null, '', window.location.pathname + window.location.search);
+                } catch (e) {
+                    window.location.hash = '';
+                }
+            }
             const el_id = TAB_IDS[tab_index];
             if (el_id) {
                 const el_tab = document.getElementById(el_id);
