@@ -17,9 +17,12 @@ export const STAGING_DOMAINS = {
 } as const;
 
 // Deriv OAuth2 PKCE configuration
-// CLIENT_ID: registered at developers.deriv.com for goldstandardmarket.site
-// APP_ID: Deriv application ID for OAuth routing
-// OAUTH_REDIRECT_URI: must EXACTLY match what's registered on Deriv developer portal (no trailing slash)
+// Registered at developers.deriv.com for goldstandardmarket.vercel.app
+export const VERCEL_OAUTH_CLIENT_ID = '34REyKsIlIgGwaqQBepZc';
+export const VERCEL_OAUTH_APP_ID = '34REyKsIlIgGwaqQBepZc';
+export const VERCEL_OAUTH_REDIRECT_URI = 'https://goldstandardmarket.vercel.app';
+
+// Registered at developers.deriv.com for goldstandardmarket.site
 export const OAUTH_CLIENT_ID = '33ePrEQqvzFWwWfNncfoc';
 export const OAUTH_APP_ID = '34469NlqBQq22EiKHEtRR';
 export const OAUTH_REDIRECT_URI = 'https://goldstandardmarket.site';
@@ -31,7 +34,7 @@ export const WS_SERVERS = {
 } as const;
 
 /**
- * Returns active OAuth Client ID with runtime localStorage and env override support
+ * Returns active OAuth Client ID with runtime localStorage, env override, and domain matching
  */
 export const getOAuthClientId = (): string => {
     const custom = localStorage.getItem('deriv_oauth_client_id');
@@ -42,11 +45,14 @@ export const getOAuthClientId = (): string => {
     if (typeof process !== 'undefined' && process.env?.CLIENT_ID) {
         return process.env.CLIENT_ID;
     }
+    if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+        return VERCEL_OAUTH_CLIENT_ID;
+    }
     return OAUTH_CLIENT_ID;
 };
 
 /**
- * Returns active Deriv App ID with runtime localStorage and env override support
+ * Returns active Deriv App ID with runtime localStorage, env override, and domain matching
  */
 export const getOAuthAppId = (): string => {
     const custom = localStorage.getItem('deriv_app_id');
@@ -56,6 +62,9 @@ export const getOAuthAppId = (): string => {
     }
     if (typeof process !== 'undefined' && process.env?.APP_ID) {
         return process.env.APP_ID;
+    }
+    if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+        return VERCEL_OAUTH_APP_ID;
     }
     return OAUTH_APP_ID;
 };
@@ -73,6 +82,9 @@ export const getOAuthRedirectURI = (): string => {
     }
     if (typeof process !== 'undefined' && process.env?.REDIRECT_URI) {
         return process.env.REDIRECT_URI.trim().replace(/\/+$/, '');
+    }
+    if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+        return VERCEL_OAUTH_REDIRECT_URI.replace(/\/+$/, '');
     }
     // Deriv developer portal has registered https://goldstandardmarket.site (no trailing slash)
     return OAUTH_REDIRECT_URI.replace(/\/+$/, '');
