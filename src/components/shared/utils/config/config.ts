@@ -68,6 +68,12 @@ export const getOAuthRedirectURI = (): string => {
     if (custom && custom.trim().length > 0) {
         return custom.trim().replace(/\/+$/, '');
     }
+    if (typeof process !== 'undefined' && process.env?.VITE_DERIV_REDIRECT_URI) {
+        return process.env.VITE_DERIV_REDIRECT_URI.trim().replace(/\/+$/, '');
+    }
+    if (typeof process !== 'undefined' && process.env?.REDIRECT_URI) {
+        return process.env.REDIRECT_URI.trim().replace(/\/+$/, '');
+    }
     // Deriv developer portal has registered https://goldstandardmarket.site (no trailing slash)
     return OAUTH_REDIRECT_URI.replace(/\/+$/, '');
 };
