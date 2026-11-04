@@ -17,12 +17,18 @@ export const STAGING_DOMAINS = {
 } as const;
 
 // Deriv OAuth2 PKCE configuration
-// CLIENT_ID: registered at developers.deriv.com for this domain
-// APP_ID: numeric app ID for WebSocket connections
-// OAUTH_REDIRECT_URI: must EXACTLY match what's registered on Deriv developer portal
-export const OAUTH_CLIENT_ID = '342vx4HbkVVPtJejdGKP1';
-export const OAUTH_APP_ID = 342;
-export const OAUTH_REDIRECT_URI = 'https://goldstandardmarket.vercel.app';
+// CLIENT_ID: registered at developers.deriv.com for goldstandardmarket.site
+// APP_ID: Deriv application ID for OAuth routing
+// OAUTH_REDIRECT_URI: must EXACTLY match what's registered on Deriv developer portal (no trailing slash)
+export const OAUTH_CLIENT_ID = '33ePrEQqvzFWwWfNncfoc';
+export const OAUTH_APP_ID = '34469NlqBQq22EiKHEtRR';
+export const OAUTH_REDIRECT_URI = 'https://goldstandardmarket.site';
+export const WS_APP_ID = 342;
+
+export const WS_SERVERS = {
+    STAGING: `wss://ws.derivws.com/websockets/v3?app_id=${WS_APP_ID}`,
+    PRODUCTION: `wss://ws.derivws.com/websockets/v3?app_id=${WS_APP_ID}`,
+} as const;
 
 /**
  * Returns active OAuth Client ID with runtime localStorage and env override support
@@ -37,33 +43,27 @@ export const getOAuthClientId = (): string => {
 };
 
 /**
- * Returns active numeric App ID with runtime localStorage and env override support
+ * Returns active Deriv App ID with runtime localStorage and env override support
  */
-export const getOAuthAppId = (): number => {
+export const getOAuthAppId = (): string => {
     const custom = localStorage.getItem('deriv_app_id');
-    if (custom && !isNaN(Number(custom))) return Number(custom);
-    if (typeof process !== 'undefined' && process.env?.VITE_DERIV_APP_ID && !isNaN(Number(process.env.VITE_DERIV_APP_ID))) {
-        return Number(process.env.VITE_DERIV_APP_ID);
+    if (custom && custom.trim().length > 0) return custom.trim();
+    if (typeof process !== 'undefined' && process.env?.VITE_DERIV_APP_ID) {
+        return process.env.VITE_DERIV_APP_ID;
     }
     return OAUTH_APP_ID;
 };
 
 /**
- * Returns active Redirect URI matching current host/origin
+ * Returns active Redirect URI matching registered Deriv developer portal configuration
  */
 export const getOAuthRedirectURI = (): string => {
-    if (isLocal()) {
-        return window.location.origin;
-    }
     const custom = localStorage.getItem('deriv_redirect_uri');
     if (custom && custom.trim().length > 0) {
-        return custom.trim();
+        return custom.trim().replace(/\/+$/, '');
     }
-    // In production/staging, default to exact canonical origin
-    if (typeof window !== 'undefined' && window.location?.origin && window.location.origin.includes('goldstandardmarket')) {
-        return window.location.origin;
-    }
-    return OAUTH_REDIRECT_URI;
+    // Deriv developer portal has registered https://goldstandardmarket.site (no trailing slash)
+    return OAUTH_REDIRECT_URI.replace(/\/+$/, '');
 };
 
 /**
@@ -93,10 +93,7 @@ export const resetOAuthCredentials = () => {
     localStorage.removeItem('deriv_redirect_uri');
 };
 
-export const WS_SERVERS = {
-    STAGING: `wss://ws.derivws.com/websockets/v3?app_id=${OAUTH_APP_ID}`,
-    PRODUCTION: `wss://ws.derivws.com/websockets/v3?app_id=${OAUTH_APP_ID}`,
-} as const;
+
 
 // =============================================================================
 // Helper Functions
@@ -299,6 +296,7 @@ export const generateOAuthURL = async (prompt?: string) => {
     try {
         // PKCE OAuth2 flow via auth.deriv.com
         const clientId = getOAuthClientId();
+        const appId = getOAuthAppId();
         const redirectUri = getOAuthRedirectURI();
 
         // Generate PKCE code verifier (random string)
@@ -328,6 +326,10 @@ export const generateOAuthURL = async (prompt?: string) => {
 
         if (prompt) {
             oauthUrl += `&prompt=${encodeURIComponent(prompt)}`;
+        }
+
+        if (appId) {
+            oauthUrl += `&app_id=${encodeURIComponent(appId)}`;
         }
 
         return oauthUrl;
