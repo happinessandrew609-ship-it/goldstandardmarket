@@ -39,6 +39,9 @@ export const getOAuthClientId = (): string => {
     if (typeof process !== 'undefined' && process.env?.VITE_DERIV_OAUTH_CLIENT_ID) {
         return process.env.VITE_DERIV_OAUTH_CLIENT_ID;
     }
+    if (typeof process !== 'undefined' && process.env?.CLIENT_ID) {
+        return process.env.CLIENT_ID;
+    }
     return OAUTH_CLIENT_ID;
 };
 
@@ -50,6 +53,9 @@ export const getOAuthAppId = (): string => {
     if (custom && custom.trim().length > 0) return custom.trim();
     if (typeof process !== 'undefined' && process.env?.VITE_DERIV_APP_ID) {
         return process.env.VITE_DERIV_APP_ID;
+    }
+    if (typeof process !== 'undefined' && process.env?.APP_ID) {
+        return process.env.APP_ID;
     }
     return OAUTH_APP_ID;
 };
