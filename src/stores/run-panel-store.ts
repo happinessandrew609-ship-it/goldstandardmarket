@@ -179,10 +179,6 @@ export default class RunPanelStore {
         const is_ios = mobileOSDetect() === 'iOS';
         this.dbot.saveRecentWorkspace();
         this.dbot.unHighlightAllBlocks();
-        if (!client.is_logged_in) {
-            this.showLoginDialog();
-            return;
-        }
 
         /**
          * Due to Apple's policy on cellular data usage in ios audioElement.play() should be initially called on
@@ -373,12 +369,13 @@ export default class RunPanelStore {
     showLoginDialog = () => {
         // Only allow closing through the buttons
         this.onOkButtonClick = () => {
-            generateOAuthURL('registration').then(url => {
-                if (url) window.location.replace(url);
-            });
+            window.open('https://deriv.com/signup/', '_blank');
             this.is_dialog_open = false;
         };
         this.onCancelButtonClick = () => {
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('gsm:open-login'));
+            }
             this.is_dialog_open = false;
         };
         this.dialog_options = {

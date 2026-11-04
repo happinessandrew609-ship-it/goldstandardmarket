@@ -25,17 +25,13 @@ export const useInvalidTokenHandler = (): { unregisterHandler: () => void } => {
             // Clear sessionStorage completely to remove any stale auth data
             sessionStorage.clear();
 
-            // Redirect to OAuth login instead of reload to get fresh authentication
-            const { generateOAuthURL } = await import('@/components/shared');
-            const oauthUrl = await generateOAuthURL();
-
-            if (oauthUrl) {
-                // Use replace to prevent back button from returning to invalid state
-                replaceUrl(oauthUrl);
-            } else {
-                // Fallback: reload if OAuth URL generation fails
-                ErrorLogger.error('InvalidToken', 'Failed to generate OAuth URL, falling back to reload');
-                reloadPage();
+            // Open login modal so user can reconnect with valid token
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(
+                    new CustomEvent('gsm:open-login', {
+                        detail: { error: 'Your Deriv session expired or token was revoked. Please enter a valid token.' },
+                    })
+                );
             }
         } catch (error) {
             ErrorLogger.error('InvalidToken', 'Error handling invalid token', error);

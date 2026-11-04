@@ -27,6 +27,8 @@ window.Blockly.Blocks.period = {
         modifyContextMenu(menu);
     },
     allowed_parents: [
+        'atr_statement',
+        'atra_statement',
         'bb_statement',
         'bba_statement',
         'ema_statement',

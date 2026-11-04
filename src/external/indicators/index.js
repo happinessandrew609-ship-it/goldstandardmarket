@@ -1,3 +1,4 @@
+export * from './indicators/average-true-range';
 export * from './indicators/bollinger-bands';
 export * from './indicators/exponential-moving-average';
 export * from './indicators/macd';

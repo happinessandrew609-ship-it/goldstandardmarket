@@ -18,6 +18,7 @@ import { localize } from '@deriv-com/translations';
 import Audio from '../components/audio';
 import BlocklyLoading from '../components/blockly-loading';
 import BotStopped from '../components/bot-stopped';
+import LaunchGateway from '../components/launch-gateway/launch-gateway';
 import BotBuilder from '../pages/bot-builder';
 import Main from '../pages/main';
 import './app.scss';
@@ -125,6 +126,8 @@ const AppContent = observer(() => {
 
             active_symbols.retrieveActiveSymbols(true).then(() => {
                 setIsLoading(false);
+            }).catch(() => {
+                setIsLoading(false);
             });
         };
 
@@ -139,13 +142,26 @@ const AppContent = observer(() => {
                     retrieveActiveSymbols();
                 }
             }, 1000);
+
+            // Safety timeout to dismiss loader even if network/symbols take long
+            setTimeout(() => {
+                clearInterval(intervalId);
+                setIsLoading(false);
+            }, 3000);
         }
     };
 
     React.useEffect(() => {
+        init();
+        const safetyTimer = setTimeout(() => {
+            setIsLoading(false);
+        }, 2000);
+        return () => clearTimeout(safetyTimer);
+    }, []);
+
+    React.useEffect(() => {
         if (is_api_initialized) {
             init();
-            setIsLoading(true);
             if (!client.is_logged_in) {
                 changeActiveSymbolLoadingState();
             }
@@ -163,10 +179,11 @@ const AppContent = observer(() => {
     if (common?.error) return null;
 
     return is_loading ? (
-        <ChunkLoader message={localize('Initializing Deriv Bot account...')} />
+        <ChunkLoader message={localize('Initializing Gold Standard Market...')} />
     ) : (
         <AuthLoadingWrapper>
             <ThemeProvider theme={is_dark_mode_on ? 'dark' : 'light'}>
+                <LaunchGateway />
                 <BlocklyLoading />
                 <div className='bot-dashboard bot' data-testid='dt_bot_dashboard'>
                     <Audio />

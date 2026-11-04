@@ -24,9 +24,10 @@ import './mobile-menu.scss';
 
 type TMobileMenuProps = {
     onLogout?: () => void;
+    onLogin?: () => void;
 };
 
-const MobileMenu = ({ onLogout }: TMobileMenuProps) => {
+const MobileMenu = ({ onLogout, onLogin }: TMobileMenuProps) => {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
     const { currentLang = 'EN', localize, switchLanguage } = useTranslations();
@@ -41,7 +42,7 @@ const MobileMenu = ({ onLogout }: TMobileMenuProps) => {
     const enableThemeToggle = brandConfig.platform.footer?.enable_theme_toggle ?? true;
 
     // Check if menu has any items to determine if mobile menu should be shown
-    const { hasMenuItems } = useMobileMenuConfig(client, onLogout, enableThemeToggle);
+    const { hasMenuItems } = useMobileMenuConfig(client, onLogout, enableThemeToggle, onLogin);
 
     const openDrawer = () => setIsDrawerOpen(true);
     const closeDrawer = () => {
@@ -117,6 +118,10 @@ const MobileMenu = ({ onLogout }: TMobileMenuProps) => {
                             onLogout={() => {
                                 closeDrawer();
                                 onLogout?.();
+                            }}
+                            onLogin={() => {
+                                closeDrawer();
+                                onLogin?.();
                             }}
                         />
                     )}

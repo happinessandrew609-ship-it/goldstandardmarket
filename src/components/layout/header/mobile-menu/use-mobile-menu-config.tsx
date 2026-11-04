@@ -24,7 +24,8 @@ type TMenuConfig = {
 const useMobileMenuConfig = (
     client?: RootStore['client'],
     onLogout?: () => void,
-    enableThemeToggle: boolean = true
+    enableThemeToggle: boolean = true,
+    onLogin?: () => void
 ) => {
     const { localize } = useTranslations();
     const { is_dark_mode_on, toggleTheme } = useThemeSwitcher();
@@ -33,23 +34,6 @@ const useMobileMenuConfig = (
 
         return [
             [
-                // ========================================
-                // CUSTOM MENU ITEMS PLACEHOLDER
-                // ========================================
-                //
-                // Add your custom menu items here.
-                //
-                // EXAMPLE:
-                // {
-                //     as: 'a',
-                //     label: localize('Your Page'),
-                //     LeftComponent: YourIcon,
-                //     href: '/your-page',
-                // },
-                //
-                // For desktop menu items, see:
-                // src/components/layout/header/header-config.tsx
-
                 // Conditionally include theme toggle based on brand config
                 enableThemeToggle && {
                     as: 'button',
@@ -67,11 +51,33 @@ const useMobileMenuConfig = (
                         onClick: onLogout,
                         removeBorderBottom: true,
                     },
+                !client?.is_logged_in && {
+                    as: 'button',
+                    label: localize('Log in'),
+                    LeftComponent: LegacyLogout1pxIcon,
+                    onClick: () => {
+                        if (onLogin) {
+                            onLogin();
+                        } else if (typeof window !== 'undefined') {
+                            window.dispatchEvent(new CustomEvent('gsm:open-login'));
+                        }
+                    },
+                },
+                !client?.is_logged_in && {
+                    as: 'button',
+                    label: localize('Sign up'),
+                    LeftComponent: LegacyLogout1pxIcon,
+                    onClick: () => {
+                        window.open('https://deriv.com/signup/', '_blank');
+                    },
+                    removeBorderBottom: true,
+                },
             ].filter(Boolean) as TMenuConfig,
         ].filter(section => section.length > 0);
     }, [
         client,
         onLogout,
+        onLogin,
         is_dark_mode_on,
         toggleTheme,
         localize,

@@ -29,7 +29,7 @@ const modifyBlocklyWorkSpaceContextMenu = () => {
 
 export const loadBlockly = async isDarkMode => {
     const BlocklyModule = await import('blockly');
-    window.Blockly = BlocklyModule.default;
+    window.Blockly = BlocklyModule.default || BlocklyModule;
     window.Blockly.Colours = {};
     const BlocklyGenerator = new window.Blockly.Generator('code');
     const BlocklyJavaScriptGenerator = {

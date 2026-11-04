@@ -53,10 +53,16 @@ export default class AppStore {
             }
         }, 10000);
 
-        if (!this.dbot_store) return;
+        if (!this.dbot_store) {
+            this.setDBotEngineStores();
+        }
 
         blockly_store.setLoading(true);
-        await DBot.initWorkspace('/', this.dbot_store, this.api_helpers_store, ui.is_mobile, false);
+        try {
+            await DBot.initWorkspace('/', this.dbot_store, this.api_helpers_store, ui?.is_mobile ?? false, false);
+        } catch (error) {
+            console.error('Failed to initialize Blockly workspace:', error);
+        }
 
         blockly_store.setContainerSize();
         blockly_store.setLoading(false);
@@ -157,6 +163,8 @@ export default class AppStore {
                                         window.Blockly.Events.fire(fake_create_event);
                                     });
                                 });
+                        }).catch(err => {
+                            console.warn('Active symbols refresh deferred:', err?.message || err);
                         });
                     }
                     DBot.initializeInterpreter();

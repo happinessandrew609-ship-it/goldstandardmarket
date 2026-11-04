@@ -14,6 +14,7 @@ import { AppLogo } from '../app-logo';
 import AccountSwitcher from './account-switcher';
 import MenuItems from './menu-items';
 import MobileMenu from './mobile-menu';
+import LoginModal from './login-modal';
 import './header.scss';
 
 const AppHeader = observer(() => {
@@ -21,6 +22,7 @@ const AppHeader = observer(() => {
     const { isAuthorizing, activeLoginid, setIsAuthorizing, authData } = useApiBase();
     const { client } = useStore() ?? {};
     const [authTimeout, setAuthTimeout] = useState(false);
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const is_account_regenerating = client?.is_account_regenerating || false;
 
     // Detect OAuth callback on mount (before App.tsx cleans up the URL).
@@ -83,43 +85,13 @@ const AppHeader = observer(() => {
         return () => clearTimeout(timer);
     }, [isAuthorizing, activeLoginid, setIsAuthorizing, authTimeout, isOAuthPending]);
 
-    const handleSignup = useCallback(async () => {
-        try {
-            setIsAuthorizing(true);
-            const oauthUrl = await generateOAuthURL('registration');
-            if (oauthUrl) {
-                window.location.replace(oauthUrl);
-            } else {
-                console.error('Failed to generate OAuth URL for signup');
-                setIsAuthorizing(false);
-            }
-        } catch (error) {
-            console.error('Signup redirection failed:', error);
-            setIsAuthorizing(false);
-        }
-    }, [setIsAuthorizing]);
+    const handleSignup = useCallback(() => {
+        window.open('https://deriv.com/signup/', '_blank');
+    }, []);
 
-    const handleLogin = useCallback(async () => {
-        try {
-            // Set authorizing state immediately when login is clicked
-            setIsAuthorizing(true);
-
-            // Generate OAuth URL with CSRF token and PKCE parameters
-            const oauthUrl = await generateOAuthURL();
-
-            if (oauthUrl) {
-                // Redirect to OAuth URL
-                window.location.replace(oauthUrl);
-            } else {
-                console.error('Failed to generate OAuth URL');
-                setIsAuthorizing(false);
-            }
-        } catch (error) {
-            console.error('Login redirection failed:', error);
-            // Reset authorizing state if redirection fails
-            setIsAuthorizing(false);
-        }
-    }, [setIsAuthorizing]);
+    const handleLogin = useCallback(() => {
+        setIsLoginModalOpen(true);
+    }, []);
 
     const handleTransfer = useCallback(() => {
         const transferCurrency = authData?.currency;
@@ -132,7 +104,7 @@ const AppHeader = observer(() => {
 
     const renderAccountSection = useCallback(
         (position: 'left' | 'right' = 'right') => {
-            // Show account switcher and logout when user is fully authenticated
+            // Show account switcher and transfer when user is fully authenticated
             if (activeLoginid && !is_account_regenerating) {
                 if (position === 'left' && !isDesktop) {
                     // For mobile left section - only account switcher
@@ -162,13 +134,33 @@ const AppHeader = observer(() => {
                         </div>
                     );
                 }
-            }
-            // Show login button only when fully settled (not during OAuth flow)
-            else if (
-                position === 'right' &&
-                !isOAuthPending &&
-                ((!is_account_regenerating && !isAuthorizing && !activeLoginid) || authTimeout)
-            ) {
+            } else if (position === 'right') {
+                // Show spinner during loading states or when authorizing
+                if (isAuthorizing || isOAuthPending) {
+                    return (
+                        <div className='auth-actions auth-actions--loading'>
+                            <svg
+                                className='auth-actions__spinner'
+                                viewBox='0 0 24 24'
+                                fill='none'
+                                xmlns='http://www.w3.org/2000/svg'
+                            >
+                                <circle
+                                    cx='12'
+                                    cy='12'
+                                    r='10'
+                                    stroke='currentColor'
+                                    strokeWidth='2.5'
+                                    strokeLinecap='round'
+                                    strokeDasharray='31.416'
+                                    strokeDashoffset='10'
+                                />
+                            </svg>
+                        </div>
+                    );
+                }
+
+                // Show login and signup buttons when user is not authenticated
                 return (
                     <div className='auth-actions'>
                         <Button tertiary onClick={handleLogin}>
@@ -177,30 +169,6 @@ const AppHeader = observer(() => {
                         <Button primary_light onClick={handleSignup}>
                             <Localize i18n_default_text='Sign up' />
                         </Button>
-                    </div>
-                );
-            }
-            // Default: Show spinner during loading states or when authorizing
-            else if (position === 'right') {
-                return (
-                    <div className='auth-actions auth-actions--loading'>
-                        <svg
-                            className='auth-actions__spinner'
-                            viewBox='0 0 24 24'
-                            fill='none'
-                            xmlns='http://www.w3.org/2000/svg'
-                        >
-                            <circle
-                                cx='12'
-                                cy='12'
-                                r='10'
-                                stroke='currentColor'
-                                strokeWidth='2.5'
-                                strokeLinecap='round'
-                                strokeDasharray='31.416'
-                                strokeDashoffset='10'
-                            />
-                        </svg>
                     </div>
                 );
             }
@@ -234,12 +202,13 @@ const AppHeader = observer(() => {
                 })}
             >
                 <Wrapper variant='left'>
-                    <MobileMenu onLogout={handleLogout} />
+                    <MobileMenu onLogout={handleLogout} onLogin={() => setIsLoginModalOpen(true)} />
                     <AppLogo />
                     {isDesktop ? <MenuItems /> : renderAccountSection('left')}
                 </Wrapper>
                 <Wrapper variant='right'>{renderAccountSection('right')}</Wrapper>
             </Header>
+            <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
         </>
     );
 });

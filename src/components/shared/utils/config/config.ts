@@ -7,25 +7,117 @@ import brandConfig from '../../../../../brand.config.json';
 // Production app domains
 export const PRODUCTION_DOMAINS = {
     COM: brandConfig.platform.hostname.production.com,
+    SITE: brandConfig.platform.hostname.production.site || 'goldstandardmarket.site',
 } as const;
 
 // Staging app domains
 export const STAGING_DOMAINS = {
     COM: brandConfig.platform.hostname.staging.com,
+    SITE: brandConfig.platform.hostname.staging.site || 'goldstandardmarket.site',
 } as const;
 
 // Deriv OAuth2 PKCE configuration
-// CLIENT_ID: registered at developers.deriv.com for this domain
-// APP_ID: numeric app ID for WebSocket connections
-// OAUTH_REDIRECT_URI: must EXACTLY match what's registered on Deriv developer portal
-export const OAUTH_CLIENT_ID = '342vx4HbkVVPtJejdGKP1';
-export const OAUTH_APP_ID = 342;
-export const OAUTH_REDIRECT_URI = 'https://goldstandardmarket.vercel.app';
+// Registered at developers.deriv.com for goldstandardmarket.vercel.app
+export const VERCEL_OAUTH_CLIENT_ID = '34REyKsIlIgGwaqQBepZc';
+export const VERCEL_OAUTH_APP_ID = '34REyKsIlIgGwaqQBepZc';
+export const VERCEL_OAUTH_REDIRECT_URI = 'https://goldstandardmarket.vercel.app';
+
+// Registered at developers.deriv.com for goldstandardmarket.site
+export const OAUTH_CLIENT_ID = '33ePrEQqvzFWwWfNncfoc';
+export const OAUTH_APP_ID = '34469NlqBQq22EiKHEtRR';
+export const OAUTH_REDIRECT_URI = 'https://goldstandardmarket.site';
+export const WS_APP_ID = 342;
 
 export const WS_SERVERS = {
-    STAGING: `wss://staging-api.derivws.com/trading/v1/options/ws/public?app_id=${OAUTH_APP_ID}`,
-    PRODUCTION: `wss://api.derivws.com/trading/v1/options/ws/public?app_id=${OAUTH_APP_ID}`,
+    STAGING: `wss://ws.derivws.com/websockets/v3?app_id=${WS_APP_ID}`,
+    PRODUCTION: `wss://ws.derivws.com/websockets/v3?app_id=${WS_APP_ID}`,
 } as const;
+
+/**
+ * Returns active OAuth Client ID with runtime localStorage, env override, and domain matching
+ */
+export const getOAuthClientId = (): string => {
+    const custom = localStorage.getItem('deriv_oauth_client_id');
+    if (custom && custom.trim().length > 0) return custom.trim();
+    if (typeof process !== 'undefined' && process.env?.VITE_DERIV_OAUTH_CLIENT_ID) {
+        return process.env.VITE_DERIV_OAUTH_CLIENT_ID;
+    }
+    if (typeof process !== 'undefined' && process.env?.CLIENT_ID) {
+        return process.env.CLIENT_ID;
+    }
+    if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+        return VERCEL_OAUTH_CLIENT_ID;
+    }
+    return OAUTH_CLIENT_ID;
+};
+
+/**
+ * Returns active Deriv App ID with runtime localStorage, env override, and domain matching
+ */
+export const getOAuthAppId = (): string => {
+    const custom = localStorage.getItem('deriv_app_id');
+    if (custom && custom.trim().length > 0) return custom.trim();
+    if (typeof process !== 'undefined' && process.env?.VITE_DERIV_APP_ID) {
+        return process.env.VITE_DERIV_APP_ID;
+    }
+    if (typeof process !== 'undefined' && process.env?.APP_ID) {
+        return process.env.APP_ID;
+    }
+    if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+        return VERCEL_OAUTH_APP_ID;
+    }
+    return OAUTH_APP_ID;
+};
+
+/**
+ * Returns active Redirect URI matching registered Deriv developer portal configuration
+ */
+export const getOAuthRedirectURI = (): string => {
+    const custom = localStorage.getItem('deriv_redirect_uri');
+    if (custom && custom.trim().length > 0) {
+        return custom.trim().replace(/\/+$/, '');
+    }
+    if (typeof process !== 'undefined' && process.env?.VITE_DERIV_REDIRECT_URI) {
+        return process.env.VITE_DERIV_REDIRECT_URI.trim().replace(/\/+$/, '');
+    }
+    if (typeof process !== 'undefined' && process.env?.REDIRECT_URI) {
+        return process.env.REDIRECT_URI.trim().replace(/\/+$/, '');
+    }
+    if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+        return VERCEL_OAUTH_REDIRECT_URI.replace(/\/+$/, '');
+    }
+    // Deriv developer portal has registered https://goldstandardmarket.site (no trailing slash)
+    return OAUTH_REDIRECT_URI.replace(/\/+$/, '');
+};
+
+/**
+ * Configures custom Deriv App ID / Client ID in local storage
+ */
+export const setCustomOAuthCredentials = (clientId?: string, appId?: number | string, redirectUri?: string) => {
+    if (clientId !== undefined) {
+        if (clientId) localStorage.setItem('deriv_oauth_client_id', clientId.trim());
+        else localStorage.removeItem('deriv_oauth_client_id');
+    }
+    if (appId !== undefined) {
+        if (appId) localStorage.setItem('deriv_app_id', String(appId).trim());
+        else localStorage.removeItem('deriv_app_id');
+    }
+    if (redirectUri !== undefined) {
+        if (redirectUri) localStorage.setItem('deriv_redirect_uri', redirectUri.trim());
+        else localStorage.removeItem('deriv_redirect_uri');
+    }
+};
+
+/**
+ * Resets OAuth credentials to official defaults
+ */
+export const resetOAuthCredentials = () => {
+    localStorage.removeItem('deriv_oauth_client_id');
+    localStorage.removeItem('deriv_app_id');
+    localStorage.removeItem('deriv_redirect_uri');
+};
+
+
 
 // =============================================================================
 // Helper Functions
@@ -227,7 +319,9 @@ export const clearCSRFToken = (): void => {
 export const generateOAuthURL = async (prompt?: string) => {
     try {
         // PKCE OAuth2 flow via auth.deriv.com
-        // old oauth.deriv.com is dead (301 redirects to deriv.com)
+        const clientId = getOAuthClientId();
+        const appId = getOAuthAppId();
+        const redirectUri = getOAuthRedirectURI();
 
         // Generate PKCE code verifier (random string)
         const codeVerifier = generateCodeVerifier();
@@ -240,18 +334,26 @@ export const generateOAuthURL = async (prompt?: string) => {
         const csrfToken = generateCSRFToken();
         storeCSRFToken(csrfToken);
 
+        // Persist active redirect URI and client ID for PKCE exchange
+        sessionStorage.setItem('oauth_redirect_uri', redirectUri);
+        sessionStorage.setItem('oauth_client_id', clientId);
+
         // Build OAuth2 PKCE URL using shared constants
         let oauthUrl = `https://auth.deriv.com/oauth2/auth?` +
             `scope=trade` +
             `&response_type=code` +
-            `&client_id=${encodeURIComponent(OAUTH_CLIENT_ID)}` +
-            `&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}` +
+            `&client_id=${encodeURIComponent(clientId)}` +
+            `&redirect_uri=${encodeURIComponent(redirectUri)}` +
             `&state=${encodeURIComponent(csrfToken)}` +
             `&code_challenge=${encodeURIComponent(codeChallenge)}` +
             `&code_challenge_method=S256`;
 
         if (prompt) {
             oauthUrl += `&prompt=${encodeURIComponent(prompt)}`;
+        }
+
+        if (appId) {
+            oauthUrl += `&app_id=${encodeURIComponent(appId)}`;
         }
 
         return oauthUrl;

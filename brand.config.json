@@ -73,10 +73,12 @@
         },
         "hostname": {
             "production": {
-                "com": "goldstandardmarket.vercel.app"
+                "com": "goldstandardmarket.vercel.app",
+                "site": "goldstandardmarket.site"
             },
             "staging": {
-                "com": "goldstandardmarket.vercel.app"
+                "com": "goldstandardmarket.vercel.app",
+                "site": "goldstandardmarket.site"
             }
         },
         "auth2_url": {
